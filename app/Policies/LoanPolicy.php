@@ -32,6 +32,14 @@ class LoanPolicy
         return $user->can(Permission::LoansUpdate->value);
     }
 
+    /**
+     * draft → active starts the loan and locks its terms.
+     */
+    public function activate(User $user, Loan $loan): bool
+    {
+        return $user->can(Permission::LoansUpdate->value);
+    }
+
     public function close(User $user, Loan $loan): bool
     {
         return $user->can(Permission::LoansClose->value);

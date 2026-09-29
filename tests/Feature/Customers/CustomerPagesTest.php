@@ -31,7 +31,7 @@ class CustomerPagesTest extends TestCase
     {
         DB::table('loans')->insert([
             'loan_no' => $loanNo, 'customer_id' => $customer->id, 'principal' => '50000.00', 'outstanding_principal' => '40000.00',
-            'interest_rate' => '2.5000', 'interest_rate_type' => 'percent', 'interest_period_unit' => 'month', 'status' => $status,
+            'interest_rate' => '2.5000', 'interest_rate_type' => 'monthly', 'interest_period_unit' => 'month', 'status' => $status,
             'start_date' => '2026-09-01', 'next_due_date' => '2026-10-31',
         ]);
     }

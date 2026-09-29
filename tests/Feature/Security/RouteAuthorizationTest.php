@@ -4,6 +4,7 @@ namespace Tests\Feature\Security;
 
 use App\Enums\SystemRole;
 use App\Models\Customer;
+use App\Models\Loan;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -60,6 +61,7 @@ class RouteAuthorizationTest extends TestCase
     {
         return [
             'customer' => Customer::factory()->create()->customer_no,
+            'loan' => Loan::factory()->create()->loan_no,
             'user' => User::factory()->create()->id,
             'role' => Role::findByName(SystemRole::GeneralUser->value)->id,
         ];

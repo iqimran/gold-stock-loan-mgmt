@@ -71,6 +71,7 @@ class LoanPermissionsTest extends TestCase
             'loan view' => [Loan::class, 'view', Permission::LoansView, true],
             'loan create' => [Loan::class, 'create', Permission::LoansCreate, false],
             'loan update' => [Loan::class, 'update', Permission::LoansUpdate, true],
+            'loan activate' => [Loan::class, 'activate', Permission::LoansUpdate, true],
             'loan close' => [Loan::class, 'close', Permission::LoansClose, true],
             'loan cancel' => [Loan::class, 'cancel', Permission::LoansCancel, true],
             'collateral viewAny' => [CollateralItem::class, 'viewAny', Permission::CollateralView, false],

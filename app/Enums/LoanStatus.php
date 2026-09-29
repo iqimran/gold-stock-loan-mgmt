@@ -3,8 +3,8 @@
 namespace App\Enums;
 
 /**
- * Loan statuses recommended by docs/01-requirements.md. Transitions are not defined here; they are
- * centralized in the loan domain service (docs/tasks/006-loan-backend.md).
+ * Loan statuses recommended by docs/01-requirements.md. Which transitions are allowed is defined
+ * in one place: App\Domain\Loan\LoanStatusTransitions.
  */
 enum LoanStatus: string
 {
@@ -22,5 +22,18 @@ enum LoanStatus: string
     public static function open(): array
     {
         return [self::Active->value, self::Overdue->value];
+    }
+
+    public function isOpen(): bool
+    {
+        return in_array($this->value, self::open(), true);
+    }
+
+    /**
+     * @return list<string>
+     */
+    public static function values(): array
+    {
+        return array_column(self::cases(), 'value');
     }
 }

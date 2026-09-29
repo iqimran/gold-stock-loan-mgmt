@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\V1\CurrentUserController;
 use App\Http\Controllers\Api\V1\CustomerController;
+use App\Http\Controllers\Api\V1\LoanController;
 use App\Http\Controllers\Api\V1\TokenController;
 use App\Http\Controllers\Api\V1\UserController;
 use App\Http\Controllers\Customers\CustomerImageController;
@@ -21,5 +22,12 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         Route::apiResource('customers', CustomerController::class);
         Route::post('customers/{customer}/restore', [CustomerController::class, 'restore'])->name('customers.restore');
         Route::get('customers/{customer}/image', CustomerImageController::class)->name('customers.image');
+        Route::get('customers/{customer}/loans', [LoanController::class, 'forCustomer'])->name('customers.loans');
+
+        // Loans (docs/04-api.md). No DELETE: loans are cancelled or closed, never deleted.
+        Route::apiResource('loans', LoanController::class)->except('destroy');
+        Route::post('loans/{loan}/activate', [LoanController::class, 'activate'])->name('loans.activate');
+        Route::post('loans/{loan}/close', [LoanController::class, 'close'])->name('loans.close');
+        Route::post('loans/{loan}/cancel', [LoanController::class, 'cancel'])->name('loans.cancel');
     });
 });
