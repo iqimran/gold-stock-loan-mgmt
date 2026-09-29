@@ -40,7 +40,8 @@ class PaymentRequest extends FormRequest
             'type' => ['required', Rule::in(PaymentType::values())],
             'amount' => MoneyRules::positive(),
             'method' => ['required', Rule::in(config('loans.payment_methods'))],
-            'payment_date' => ['required', 'date_format:Y-m-d'],
+            // Future dates are refused here for immediate feedback; the backdating limit is checked by PaymentService.
+            'payment_date' => ['required', 'date_format:Y-m-d', 'before_or_equal:today'],
             'reference' => ['nullable', 'string', 'max:100'],
             'notes' => ['nullable', 'string', 'max:2000'],
             'idempotency_key' => ['nullable', 'string', 'max:100'],

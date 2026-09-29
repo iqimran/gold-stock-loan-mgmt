@@ -161,13 +161,13 @@ export default function ShowLoan({ loan, customer, summary, collateral, payments
             key: 'receipt',
             header: 'Receipt',
             cell: (payment) => (
-                // Receipt pages arrive with the payment module; until then the number is shown without a link.
-                <span
-                    className="inline-flex items-center gap-1 font-medium whitespace-nowrap"
-                    title="Receipt view is available once the payment module is enabled"
-                >
-                    <ReceiptText className="text-muted-foreground size-4" aria-hidden />
-                    {payment.receipt_no}
+                <span className="inline-flex items-center gap-2 whitespace-nowrap">
+                    <Link href={route('payments.show', payment.receipt_no)} className="font-medium hover:underline">
+                        {payment.receipt_no}
+                    </Link>
+                    <Link href={route('payments.receipt', payment.receipt_no)} title="Receipt" aria-label={`Receipt ${payment.receipt_no}`}>
+                        <ReceiptText className="text-muted-foreground hover:text-foreground size-4" />
+                    </Link>
                 </span>
             ),
         },
@@ -243,7 +243,16 @@ export default function ShowLoan({ loan, customer, summary, collateral, payments
                             </p>
                         )}
                     </div>
-                    <LoanActions loan={loan} />
+                    <div className="flex flex-wrap gap-2">
+                        {can('payments.create') && ['active', 'overdue'].includes(loan.status) && (
+                            <Button asChild>
+                                <Link href={route('payments.create', { loan: loan.loan_no })}>
+                                    <ReceiptText className="size-4" /> Record payment
+                                </Link>
+                            </Button>
+                        )}
+                        <LoanActions loan={loan} />
+                    </div>
                 </div>
 
                 {error && (

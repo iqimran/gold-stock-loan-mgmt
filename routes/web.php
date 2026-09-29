@@ -6,6 +6,7 @@ use App\Http\Controllers\Customers\CustomerController;
 use App\Http\Controllers\Customers\CustomerImageController;
 use App\Http\Controllers\Loans\LoanCollateralController;
 use App\Http\Controllers\Loans\LoanController;
+use App\Http\Controllers\Payments\PaymentController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -31,6 +32,14 @@ Route::middleware(['auth'])->group(function () {
     Route::post('loans/{loan}/collateral', [LoanCollateralController::class, 'store'])->name('loans.collateral.store');
     Route::patch('collateral/{collateralItem}', [LoanCollateralController::class, 'update'])->name('collateral.update');
     Route::post('collateral/{collateralItem}/release', [LoanCollateralController::class, 'release'])->name('collateral.release');
+
+    // Payments: no edit or delete; a posted payment is only ever reversed.
+    Route::get('payments', [PaymentController::class, 'index'])->name('payments.index');
+    Route::get('payments/create', [PaymentController::class, 'create'])->name('payments.create');
+    Route::post('payments', [PaymentController::class, 'store'])->name('payments.store');
+    Route::get('payments/{payment}', [PaymentController::class, 'show'])->name('payments.show');
+    Route::get('payments/{payment}/receipt', [PaymentController::class, 'receipt'])->name('payments.receipt');
+    Route::post('payments/{payment}/reverse', [PaymentController::class, 'reverse'])->name('payments.reverse');
 
     Route::prefix('admin')->name('admin.')->group(function () {
         Route::resource('users', UserController::class)->except(['show', 'destroy']);
