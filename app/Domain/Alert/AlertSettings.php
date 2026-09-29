@@ -2,10 +2,11 @@
 
 namespace App\Domain\Alert;
 
+use App\Domain\Settings\LoanSettings;
 use InvalidArgumentException;
 
 /**
- * The configurable alert rule (config/loans.php today; the Settings module later). Never hard-coded.
+ * The configurable alert rule (Settings → Loan settings; default in config/loans.php). Never hard-coded.
  */
 final readonly class AlertSettings
 {
@@ -16,8 +17,8 @@ final readonly class AlertSettings
         }
     }
 
-    public static function fromConfig(): self
+    public static function fromSettings(LoanSettings $settings): self
     {
-        return new self((int) config('loans.alerts.missed_period_threshold', 2));
+        return new self($settings->alertThreshold());
     }
 }

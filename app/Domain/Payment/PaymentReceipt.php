@@ -2,6 +2,7 @@
 
 namespace App\Domain\Payment;
 
+use App\Domain\Settings\LoanSettings;
 use App\Enums\LedgerEntryType;
 use App\Models\LedgerEntry;
 use App\Models\Loan;
@@ -45,17 +46,12 @@ class PaymentReceipt
     }
 
     /**
-     * config/shop.php — the shop block printed at the top of receipts.
+     * Settings → shop details: the block printed at the top of receipts and exports.
      *
      * @return array{name: string, address: ?string, phone: ?string, receipt_footer: ?string}
      */
     public function shop(): array
     {
-        return [
-            'name' => (string) config('shop.name'),
-            'address' => config('shop.address'),
-            'phone' => config('shop.phone'),
-            'receipt_footer' => config('shop.receipt_footer'),
-        ];
+        return app(LoanSettings::class)->shop();
     }
 }

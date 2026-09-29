@@ -4,10 +4,12 @@ namespace App\Domain\Interest;
 
 use App\Domain\Alert\MissedPaymentAlertService;
 use App\Domain\Ledger\CustomerLedgerService;
+use App\Domain\Settings\LoanSettings;
 use App\Enums\InterestBase;
 use App\Enums\InterestPeriodStatus;
 use App\Models\Loan;
 use App\Support\Money;
+use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
 
@@ -22,10 +24,9 @@ use Illuminate\Support\Facades\DB;
 class InterestScheduleService
 {
     public function __construct(
-        private readonly InterestCalculationService $calculator,
-        private readonly InterestSettings $settings,
         private readonly CustomerLedgerService $ledger,
         private readonly MissedPaymentAlertService $alerts,
+        private readonly LoanSettings $settings,
     ) {}
 
     /**
@@ -48,8 +49,10 @@ class InterestScheduleService
                 return new InterestSyncResult(0, 0);
             }
 
-            $calendar = new InterestPeriodCalendar($this->settings->due);
-            $created = $this->createMissingPeriods($locked, $calendar, $today);
+            // The loan's own interest method (fixed at creation), not today's settings.
+            $method = InterestSettings::forLoan($locked);
+            $calendar = new InterestPeriodCalendar($method->due);
+            $created = $this->createMissingPeriods($locked, $calendar, $method, $today);
             $updated = $this->refreshStatuses($locked, $today);
             $this->updateNextDueDate($locked, $calendar, $today);
             $this->ledger->chargeDueInterest($locked, $today);
@@ -67,6 +70,7 @@ class InterestScheduleService
     public function refreshStatuses(Loan $loan, string $today): int
     {
         $changed = 0;
+        $cutoff = $this->settings->missedCutoff(CarbonImmutable::parse($today));
 
         foreach ($loan->interestPeriods()->get() as $period) {
             $status = InterestPeriodStatusResolver::resolve(
@@ -75,6 +79,7 @@ class InterestScheduleService
                 $period->waived_at !== null,
                 $period->due_date->toDateString(),
                 $today,
+                $cutoff,
             );
 
             if ($period->status !== $status) {
@@ -86,8 +91,10 @@ class InterestScheduleService
         return $changed;
     }
 
-    private function createMissingPeriods(Loan $loan, InterestPeriodCalendar $calendar, string $today): int
+    private function createMissingPeriods(Loan $loan, InterestPeriodCalendar $calendar, InterestSettings $method, string $today): int
     {
+        $calculator = new InterestCalculationService($method);
+        $cutoff = $this->settings->missedCutoff(CarbonImmutable::parse($today));
         $existing = $loan->interestPeriods()->pluck('period_start')->map(fn ($date) => substr((string) $date, 0, 10))->flip();
         $rows = [];
 
@@ -96,8 +103,8 @@ class InterestScheduleService
                 continue;
             }
 
-            $expected = $this->calculator->expectedInterest(
-                $this->base($loan, $period->start),
+            $expected = $calculator->expectedInterest(
+                $this->base($loan, $method, $period->start),
                 $loan->interest_rate,
                 $loan->interest_rate_type,
                 $period,
@@ -110,7 +117,7 @@ class InterestScheduleService
                 'due_date' => $period->due,
                 'expected_interest' => $expected,
                 'paid_interest' => '0.00',
-                'status' => InterestPeriodStatusResolver::resolve($expected, '0.00', false, $period->due, $today)->value,
+                'status' => InterestPeriodStatusResolver::resolve($expected, '0.00', false, $period->due, $today, $cutoff)->value,
                 'created_at' => now(),
                 'updated_at' => now(),
             ];
@@ -124,9 +131,9 @@ class InterestScheduleService
      * the period's start, i.e. principal minus principal repaid by (non-reversed) payments dated
      * before that day — deterministic however late the period is generated.
      */
-    private function base(Loan $loan, string $periodStart): string
+    private function base(Loan $loan, InterestSettings $method, string $periodStart): string
     {
-        if ($this->settings->base === InterestBase::Principal) {
+        if ($method->base === InterestBase::Principal) {
             return $loan->principal;
         }
 

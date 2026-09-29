@@ -6,6 +6,7 @@ use App\Domain\Interest\InterestScheduleService;
 use App\Domain\Ledger\CustomerLedgerService;
 use App\Domain\Loan\LoanHistory;
 use App\Domain\Loan\LoanService;
+use App\Domain\Settings\LoanSettings;
 use App\Enums\LedgerEntryType;
 use App\Enums\LoanEventType;
 use App\Enums\PaymentStatus;
@@ -39,8 +40,6 @@ use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
  */
 class PaymentService
 {
-    public const NUMBER_PREFIX = 'RCPT';
-
     public function __construct(
         private readonly PaymentAllocator $allocator,
         private readonly InterestScheduleService $schedule,
@@ -48,6 +47,7 @@ class PaymentService
         private readonly CustomerLedgerService $ledger,
         private readonly LoanHistory $history,
         private readonly DocumentNumberGenerator $numbers,
+        private readonly LoanSettings $settings,
     ) {}
 
     /**
@@ -104,7 +104,7 @@ class PaymentService
         );
 
         $payment = Payment::create([
-            'receipt_no' => $this->numbers->next(self::NUMBER_PREFIX),
+            'receipt_no' => $this->numbers->nextIn($this->settings->numbering('receipt')),
             'idempotency_key' => $idempotencyKey,
             'customer_id' => $locked->customer_id,
             'loan_id' => $locked->id,

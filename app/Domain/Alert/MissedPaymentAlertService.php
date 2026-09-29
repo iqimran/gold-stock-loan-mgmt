@@ -5,12 +5,14 @@ namespace App\Domain\Alert;
 use App\Domain\Interest\InterestPeriodStatusResolver;
 use App\Domain\Interest\MissedPeriodStreak;
 use App\Domain\Loan\LoanHistory;
+use App\Domain\Settings\LoanSettings;
 use App\Enums\AlertStatus;
 use App\Enums\AlertType;
 use App\Enums\LoanEventType;
 use App\Models\Alert;
 use App\Models\InterestPeriod;
 use App\Models\Loan;
+use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -37,6 +39,7 @@ class MissedPaymentAlertService
     public function __construct(
         private readonly AlertSettings $settings,
         private readonly LoanHistory $history,
+        private readonly LoanSettings $loanSettings,
     ) {}
 
     public function sync(Loan $loan, CarbonInterface|string $today): ?Alert
@@ -50,7 +53,8 @@ class MissedPaymentAlertService
             return null;
         }
 
-        $streak = MissedPeriodStreak::of($this->periods($loan, $today), $today);
+        $cutoff = $this->loanSettings->missedCutoff(CarbonImmutable::parse($today));
+        $streak = MissedPeriodStreak::of($this->periods($loan, $today, $cutoff), $cutoff);
 
         if (count($streak) < $threshold) {
             $this->resolveOpen($loan, count($streak) === 0 ? 'no missed periods' : count($streak).' consecutive missed, below the threshold of '.$threshold);
@@ -103,7 +107,7 @@ class MissedPaymentAlertService
     /**
      * @return list<array{id: int, period_start: string, due_date: string, status: string}>
      */
-    private function periods(Loan $loan, string $today): array
+    private function periods(Loan $loan, string $today, string $cutoff): array
     {
         return InterestPeriod::query()
             ->where('loan_id', $loan->id)
@@ -115,7 +119,7 @@ class MissedPaymentAlertService
                 'period_start' => $period->period_start->toDateString(),
                 'due_date' => $period->due_date->toDateString(),
                 'status' => InterestPeriodStatusResolver::resolve(
-                    $period->expected_interest, $period->paid_interest, $period->waived_at !== null, $period->due_date->toDateString(), $today,
+                    $period->expected_interest, $period->paid_interest, $period->waived_at !== null, $period->due_date->toDateString(), $today, $cutoff,
                 )->value,
             ])
             ->all();

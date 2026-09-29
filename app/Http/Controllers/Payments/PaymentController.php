@@ -8,6 +8,7 @@ use App\Domain\Payment\PaymentReceipt;
 use App\Domain\Payment\PaymentReversalService;
 use App\Domain\Payment\PaymentSearch;
 use App\Domain\Payment\PaymentService;
+use App\Domain\Settings\LoanSettings;
 use App\Enums\LoanStatus;
 use App\Enums\PaymentType;
 use App\Http\Controllers\Controller;
@@ -41,7 +42,7 @@ class PaymentController extends Controller
             'payments' => PaymentResource::collection($search->paginate($filters, $request->integer('per_page', 20))),
             'filters' => array_map(fn ($value) => $value ?? '', $filters),
             'types' => PaymentType::values(),
-            'methods' => config('loans.payment_methods'),
+            'methods' => app(LoanSettings::class)->paymentMethods(),
         ]);
     }
 
@@ -65,7 +66,7 @@ class PaymentController extends Controller
 
         return Inertia::render('payments/create', [
             'types' => array_values(array_diff(PaymentType::values(), [PaymentType::Adjustment->value])),
-            'methods' => config('loans.payment_methods'),
+            'methods' => app(LoanSettings::class)->paymentMethods(),
             'today' => today()->toDateString(),
             // One key per form: a double submit or a retry after a network error posts the payment once.
             'idempotencyKey' => (string) Str::uuid(),

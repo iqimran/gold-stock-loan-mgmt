@@ -2,6 +2,7 @@
 
 namespace App\Actions\Customers;
 
+use App\Domain\Settings\LoanSettings;
 use App\Enums\CustomerStatus;
 use App\Models\Customer;
 use App\Services\DocumentNumberGenerator;
@@ -14,15 +15,16 @@ use Throwable;
 /**
  * Creates or updates a customer, including the optional photo.
  *
- * New customers get a generated customer number (CUS-YYYYMM-000001) and start active; status is
+ * New customers get a generated customer number (format: Settings → numbering) and start active; status is
  * changed only through ChangeCustomerStatus (customers.archive). A replaced or removed photo is
  * deleted after commit, so a rolled-back update never loses the current file.
  */
 class SaveCustomer
 {
-    public const NUMBER_PREFIX = 'CUS';
-
-    public function __construct(private readonly DocumentNumberGenerator $numbers) {}
+    public function __construct(
+        private readonly DocumentNumberGenerator $numbers,
+        private readonly LoanSettings $settings,
+    ) {}
 
     /**
      * @param  array{name: string, mobile: string, nid?: ?string, address?: ?string}  $data
@@ -38,7 +40,7 @@ class SaveCustomer
         try {
             return DB::transaction(function () use ($customer, $data, $newImage, $removeImage): Customer {
                 $customer ??= new Customer([
-                    'customer_no' => $this->numbers->next(self::NUMBER_PREFIX),
+                    'customer_no' => $this->numbers->nextIn($this->settings->numbering('customer')),
                     'status' => CustomerStatus::Active,
                 ]);
 

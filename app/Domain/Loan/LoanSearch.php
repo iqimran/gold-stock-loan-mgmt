@@ -2,6 +2,7 @@
 
 namespace App\Domain\Loan;
 
+use App\Domain\Settings\LoanSettings;
 use App\Enums\LoanStatus;
 use App\Models\Loan;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -11,10 +12,12 @@ use Illuminate\Database\Query\Builder as QueryBuilder;
 /**
  * Loan list/search. A search term matches the loan number, or the customer's number, name or mobile,
  * case-insensitively. "Overdue" uses the same missed-period rule as the customer summary: a period due
- * before today, not waived and not fully paid.
+ * before the missed cutoff (today minus the grace period), not waived and not fully paid.
  */
 class LoanSearch
 {
+    public function __construct(private readonly LoanSettings $settings) {}
+
     /**
      * @param  array{q?: ?string, customer?: ?string, status?: ?string, started_from?: ?string, started_to?: ?string, due_by?: ?string, overdue?: bool, rate_min?: ?string, rate_max?: ?string}  $filters
      *                                                                                                                                                                                                     status: a LoanStatus value, or 'open' (active + overdue)
@@ -51,7 +54,7 @@ class LoanSearch
                     ->selectRaw('1')
                     ->from('interest_periods as p')
                     ->whereColumn('p.loan_id', 'loans.id')
-                    ->where('p.due_date', '<', today()->toDateString())
+                    ->where('p.due_date', '<', $this->settings->missedCutoff())
                     ->whereNull('p.waived_at')
                     ->whereColumn('p.paid_interest', '<', 'p.expected_interest')))
             ->orderByDesc('loans.start_date')

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Domain\Alert\AlertQuery;
+use App\Domain\Alert\AlertSettings;
 use App\Enums\AlertStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\AlertResource;
@@ -42,6 +43,6 @@ class AlertController extends Controller
     {
         Gate::authorize('viewAny', Loan::class);
 
-        return response()->json(['data' => $alerts->summary() + ['threshold' => (int) config('loans.alerts.missed_period_threshold')]]);
+        return response()->json(['data' => $alerts->summary() + ['threshold' => app(AlertSettings::class)->missedPeriodThreshold]]);
     }
 }

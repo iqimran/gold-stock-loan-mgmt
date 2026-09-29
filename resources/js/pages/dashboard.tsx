@@ -207,7 +207,7 @@ export default function Dashboard({
     collections,
     recentPayments,
 }: DashboardProps) {
-    const { auth } = usePage<SharedData>().props;
+    const { auth, currency } = usePage<SharedData>().props;
     const { errors } = usePage<{ errors: Record<string, string> }>().props;
     const { loading, error, retry } = useVisitState('/dashboard');
     const hasMetrics = loanSummary !== null || collections !== null;
@@ -229,7 +229,9 @@ export default function Dashboard({
                     <Heading
                         title={`Welcome, ${auth.user.name}`}
                         description={
-                            hasMetrics ? `Figures as of ${formatDate(asOf)} (${timezone}). Collections are for the selected month.` : undefined
+                            hasMetrics
+                                ? `Figures as of ${formatDate(asOf)} (${timezone}). Collections are for the selected month. Amounts in ${currency.code}.`
+                                : undefined
                         }
                     />
                     {collections && (

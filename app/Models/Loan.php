@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Domain\Interest\InterestSettings;
 use App\Enums\InterestPeriodUnit;
 use App\Enums\InterestRateType;
 use App\Enums\LoanStatus;
@@ -39,6 +40,8 @@ class Loan extends Model
     protected $fillable = [
         'loan_no', 'customer_id', 'principal', 'outstanding_principal', 'interest_rate', 'interest_rate_type',
         'interest_period_unit', 'status', 'start_date', 'next_due_date', 'closed_at', 'notes',
+        // The loan's interest method, fixed at creation (App\Domain\Interest\InterestSettings::forLoan).
+        'interest_base', 'interest_due_timing', 'yearly_rate_conversion',
     ];
 
     protected function casts(): array
@@ -54,6 +57,19 @@ class Loan extends Model
             'next_due_date' => 'date',
             'closed_at' => 'datetime',
         ];
+    }
+
+    /**
+     * Every new loan takes the interest method in force at creation (Settings); later settings changes
+     * never reach an existing loan (business-decided).
+     */
+    protected static function booted(): void
+    {
+        static::creating(function (Loan $loan): void {
+            foreach (app(InterestSettings::class)->toLoanAttributes() as $attribute => $value) {
+                $loan->{$attribute} ??= $value;
+            }
+        });
     }
 
     public function getRouteKeyName(): string

@@ -38,7 +38,7 @@
         @foreach ($dataset->filters as $label => $value)
             <tr><td class="label">{{ $label }}</td><td>{{ $value }}</td></tr>
         @endforeach
-        <tr><td class="label">Generated</td><td>{{ $generatedAt }}@if ($generatedBy) by {{ $generatedBy }}@endif · {{ count($dataset->rows) }} row(s)</td></tr>
+        <tr><td class="label">Generated</td><td>{{ $generatedAt }}@if ($generatedBy) by {{ $generatedBy }}@endif · {{ count($dataset->rows) }} row(s) · Amounts in {{ $currency['code'] }}</td></tr>
     </table>
 
     <table class="data">

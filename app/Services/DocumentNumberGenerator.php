@@ -14,13 +14,17 @@ use LogicException;
  */
 class DocumentNumberGenerator
 {
-    public function next(string $prefix, ?DateTimeInterface $date = null): string
+    /**
+     * @param  string  $reset  'monthly' (PREFIX-YYYYMM-…) or 'yearly' (PREFIX-YYYY-…): when the sequence restarts
+     * @param  int  $digits  zero-padded sequence length
+     */
+    public function next(string $prefix, ?DateTimeInterface $date = null, string $reset = 'monthly', int $digits = 6): string
     {
         if (DB::transactionLevel() === 0) {
             throw new LogicException('Document numbers must be generated inside a database transaction.');
         }
 
-        $period = ($date ?? now())->format('Ym');
+        $period = ($date ?? now())->format($reset === 'yearly' ? 'Y' : 'Ym');
         $next = $this->lockedLastNumber($prefix, $period) + 1;
 
         DB::table('document_sequences')
@@ -28,7 +32,17 @@ class DocumentNumberGenerator
             ->where('period', $period)
             ->update(['last_number' => $next, 'updated_at' => now()]);
 
-        return sprintf('%s-%s-%06d', $prefix, $period, $next);
+        return sprintf('%s-%s-%0'.$digits.'d', $prefix, $period, $next);
+    }
+
+    /**
+     * The next number in a configured format (Settings → Loan settings → numbering).
+     *
+     * @param  array{prefix: string, reset: string, digits: int}  $format
+     */
+    public function nextIn(array $format, ?DateTimeInterface $date = null): string
+    {
+        return $this->next($format['prefix'], $date, $format['reset'], $format['digits']);
     }
 
     private function lockedLastNumber(string $prefix, string $period): int

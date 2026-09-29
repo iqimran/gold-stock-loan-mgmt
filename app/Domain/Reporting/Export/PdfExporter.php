@@ -3,6 +3,7 @@
 namespace App\Domain\Reporting\Export;
 
 use App\Domain\Payment\PaymentReceipt;
+use App\Domain\Settings\LoanSettings;
 use App\Models\User;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Symfony\Component\HttpFoundation\Response;
@@ -20,6 +21,7 @@ class PdfExporter
         $pdf = Pdf::loadView('exports.dataset', [
             'dataset' => $dataset,
             'shop' => $this->receipts->shop(),
+            'currency' => app(LoanSettings::class)->currency(),
             'generatedAt' => now()->format('Y-m-d H:i').' ('.config('app.timezone').')',
             'generatedBy' => $user?->name,
         ])->setPaper('a4', $dataset->orientation)

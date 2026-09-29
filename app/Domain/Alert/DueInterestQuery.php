@@ -2,6 +2,7 @@
 
 namespace App\Domain\Alert;
 
+use App\Domain\Settings\LoanSettings;
 use App\Enums\LoanStatus;
 use App\Models\InterestPeriod;
 use App\Support\Money;
@@ -17,15 +18,17 @@ use Illuminate\Support\Facades\DB;
  * from the facts for the business date, exactly like the period status resolver and the missed rule:
  *
  *   upcoming        due after today, nothing paid
- *   due             due today
+ *   due             due today or earlier, still within the grace period (Settings; today only without one)
  *   partially_paid  something paid, not yet overdue
- *   overdue         due before today (partly paid included)
+ *   overdue         due before the missed cutoff = today minus the grace period (partly paid included)
  *   unpaid          any of the above (default)
  *
  * Each row carries its loan's consecutive-missed count, which also backs the "missed threshold" filter.
  */
 class DueInterestQuery
 {
+    public function __construct(private readonly LoanSettings $settings) {}
+
     public const STATUSES = ['unpaid', 'upcoming', 'due', 'partially_paid', 'overdue'];
 
     /**
@@ -34,21 +37,22 @@ class DueInterestQuery
      */
     public function query(array $filters, ?CarbonInterface $today = null): Builder
     {
+        $cutoff = $this->settings->missedCutoff($today);
         $today = ($today ?? today())->toDateString();
 
         $query = InterestPeriod::query()
             ->with(['loan:id,loan_no,status,customer_id,next_due_date', 'loan.customer:id,customer_no,name,mobile'])
             ->select('interest_periods.*')
-            ->selectSub($this->consecutiveMissed($today), 'consecutive_missed')
+            ->selectSub($this->consecutiveMissed($cutoff), 'consecutive_missed')
             ->whereNull('interest_periods.waived_at')
             ->whereColumn('interest_periods.paid_interest', '<', 'interest_periods.expected_interest')
             ->whereHas('loan', fn (Builder $loan) => $loan->whereIn('status', LoanStatus::open()));
 
         match ($filters['status'] ?? 'unpaid') {
             'upcoming' => $query->where('interest_periods.due_date', '>', $today)->where('interest_periods.paid_interest', '=', 0),
-            'due' => $query->where('interest_periods.due_date', '=', $today),
-            'partially_paid' => $query->where('interest_periods.due_date', '>=', $today)->where('interest_periods.paid_interest', '>', 0),
-            'overdue' => $query->where('interest_periods.due_date', '<', $today),
+            'due' => $query->where('interest_periods.due_date', '>=', $cutoff)->where('interest_periods.due_date', '<=', $today),
+            'partially_paid' => $query->where('interest_periods.due_date', '>=', $cutoff)->where('interest_periods.paid_interest', '>', 0),
+            'overdue' => $query->where('interest_periods.due_date', '<', $cutoff),
             default => null,
         };
 
@@ -57,7 +61,7 @@ class DueInterestQuery
             ->when($filters['due_to'] ?? null, fn (Builder $q, string $to) => $q->where('interest_periods.due_date', '<=', $to))
             ->when($filters['loan'] ?? null, fn (Builder $q, string $loanNo) => $q->whereHas('loan', fn (Builder $l) => $l->where('loan_no', $loanNo)))
             ->when($filters['customer'] ?? null, fn (Builder $q, string $customerNo) => $q->whereHas('loan.customer', fn (Builder $c) => $c->where('customer_no', $customerNo)))
-            ->when($filters['min_missed'] ?? null, fn (Builder $q, int $min) => $q->where($this->consecutiveMissed($today), '>=', $min))
+            ->when($filters['min_missed'] ?? null, fn (Builder $q, int $min) => $q->where($this->consecutiveMissed($cutoff), '>=', $min))
             ->orderBy('interest_periods.due_date')
             ->orderBy('interest_periods.id');
     }
@@ -116,12 +120,12 @@ class DueInterestQuery
      */
     public function overdueByLoan(int $limit, ?CarbonInterface $today = null): array
     {
-        $todayString = ($today ?? today())->toDateString();
+        $cutoff = $this->settings->missedCutoff($today);
 
         return $this->query(['status' => 'overdue'], $today)->reorder()->toBase()
             ->select('interest_periods.loan_id')
             ->selectRaw('sum(interest_periods.expected_interest - interest_periods.paid_interest) as overdue_interest, count(*) as overdue_periods, min(interest_periods.due_date) as oldest_due_date')
-            ->selectSub($this->consecutiveMissed($todayString), 'consecutive_missed')
+            ->selectSub($this->consecutiveMissed($cutoff), 'consecutive_missed')
             ->groupBy('interest_periods.loan_id')
             ->orderBy('oldest_due_date')
             ->orderBy('interest_periods.loan_id')
@@ -141,11 +145,11 @@ class DueInterestQuery
      * The row's loan's consecutive-missed count (same rule as App\Domain\Interest\MissedPeriodStreak):
      * missed periods after the loan's last settled past-due period.
      */
-    private function consecutiveMissed(string $today): QueryBuilder
+    private function consecutiveMissed(string $cutoff): QueryBuilder
     {
         return DB::table('interest_periods as m')
             ->whereColumn('m.loan_id', 'interest_periods.loan_id')
-            ->where('m.due_date', '<', $today)
+            ->where('m.due_date', '<', $cutoff)
             ->whereNull('m.waived_at')
             ->whereColumn('m.paid_interest', '<', 'm.expected_interest')
             ->whereNotExists(fn (QueryBuilder $settled) => $settled
@@ -153,7 +157,7 @@ class DueInterestQuery
                 ->from('interest_periods as s')
                 ->whereColumn('s.loan_id', 'm.loan_id')
                 ->whereColumn('s.due_date', '>', 'm.due_date')
-                ->where('s.due_date', '<', $today)
+                ->where('s.due_date', '<', $cutoff)
                 ->where(fn (QueryBuilder $paid) => $paid->whereNotNull('s.waived_at')->orWhereColumn('s.paid_interest', '>=', 's.expected_interest')))
             ->selectRaw('count(*)');
     }

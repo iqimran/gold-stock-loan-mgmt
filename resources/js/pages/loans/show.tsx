@@ -32,6 +32,7 @@ interface ShowLoanProps {
     payments: LoanPayment[] | null;
     collateralTypes: string[];
     maxKarat: string;
+    karatOptions: string[];
 }
 
 type Tab = 'overview' | 'collateral' | 'payments' | 'summary';
@@ -71,7 +72,7 @@ function Line({ label, value, strong }: { label: string; value: ReactNode; stron
     );
 }
 
-export default function ShowLoan({ loan, customer, summary, collateral, payments, collateralTypes, maxKarat }: ShowLoanProps) {
+export default function ShowLoan({ loan, customer, summary, collateral, payments, collateralTypes, maxKarat, karatOptions }: ShowLoanProps) {
     const can = useCan();
     const { url } = usePage();
     const initialTab = new URLSearchParams(url.split('?')[1] ?? '').get('tab') as Tab | null;
@@ -544,6 +545,7 @@ export default function ShowLoan({ loan, customer, summary, collateral, payments
                     reasonRequired={loan.status !== 'draft'}
                     types={collateralTypes}
                     maxKarat={maxKarat}
+                    karatOptions={karatOptions}
                 />
             )}
         </AppLayout>

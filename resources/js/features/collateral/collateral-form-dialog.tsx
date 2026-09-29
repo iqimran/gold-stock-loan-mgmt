@@ -32,12 +32,14 @@ interface CollateralFormDialogProps {
     reasonRequired: boolean;
     types: string[];
     maxKarat: string;
+    /** Suggested karat values (Settings); any value up to maxKarat is accepted. */
+    karatOptions: string[];
 }
 
 /**
  * Add or correct a collateral item. Validation is done by the server; its messages appear under each field.
  */
-export function CollateralFormDialog({ open, onOpenChange, loanNo, item, reasonRequired, types, maxKarat }: CollateralFormDialogProps) {
+export function CollateralFormDialog({ open, onOpenChange, loanNo, item, reasonRequired, types, maxKarat, karatOptions }: CollateralFormDialogProps) {
     const { data, setData, post, patch, processing, errors, reset, clearErrors } = useForm<CollateralFormData>({
         type: item?.type ?? types[0] ?? '',
         weight_grams: item?.weight_grams ?? '',
@@ -111,7 +113,17 @@ export function CollateralFormDialog({ open, onOpenChange, loanNo, item, reasonR
                             <Label htmlFor="collateral-karat">
                                 Karat <span className="text-muted-foreground font-normal">(optional, max {maxKarat})</span>
                             </Label>
-                            <Input {...field('karat')} inputMode="decimal" onChange={(e) => setData('karat', e.target.value)} />
+                            <Input
+                                {...field('karat')}
+                                inputMode="decimal"
+                                list="collateral-karat-options"
+                                onChange={(e) => setData('karat', e.target.value)}
+                            />
+                            <datalist id="collateral-karat-options">
+                                {karatOptions.map((karat) => (
+                                    <option key={karat} value={karat} />
+                                ))}
+                            </datalist>
                             <InputError message={errors.karat} />
                         </div>
                         <div className="grid gap-2">

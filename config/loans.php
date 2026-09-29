@@ -57,6 +57,38 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Settings defaults
+    |--------------------------------------------------------------------------
+    |
+    | Defaults for Settings → Loan settings (App\Domain\Settings\LoanSettings). A value saved in
+    | Settings wins; these apply until one is saved. Number formats: PREFIX-PERIOD-SEQUENCE.
+    |
+    */
+
+    'currency' => [
+        'code' => env('CURRENCY_CODE', 'BDT'),
+        'symbol' => env('CURRENCY_SYMBOL', '৳'),
+    ],
+
+    'defaults' => [
+        'interest_rate' => null,         // prefilled on the New loan form when set
+        'interest_rate_type' => 'monthly',
+        'grace_days' => (int) env('GRACE_DAYS', 0),
+    ],
+
+    'numbering' => [
+        'customer' => 'CUS',
+        'loan' => 'LN',
+        'collateral' => 'COL',
+        'receipt' => 'RCPT',
+        'reset' => 'monthly',            // monthly: PREFIX-YYYYMM-…, yearly: PREFIX-YYYY-…
+        'digits' => 6,
+    ],
+
+    'karat_options' => ['18', '21', '22', '24'],
+
+    /*
+    |--------------------------------------------------------------------------
     | Missed-Interest Alerts
     |--------------------------------------------------------------------------
     |

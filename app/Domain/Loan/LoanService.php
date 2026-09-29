@@ -4,6 +4,7 @@ namespace App\Domain\Loan;
 
 use App\Domain\Interest\InterestScheduleService;
 use App\Domain\Ledger\CustomerLedgerService;
+use App\Domain\Settings\LoanSettings;
 use App\Enums\InterestPeriodStatus;
 use App\Enums\LoanEventType;
 use App\Enums\LoanStatus;
@@ -25,8 +26,6 @@ use Illuminate\Validation\ValidationException;
  */
 class LoanService
 {
-    public const NUMBER_PREFIX = 'LN';
-
     /** Loan terms that are editable only while the loan is a draft. */
     public const FINANCIAL_FIELDS = ['principal', 'interest_rate', 'interest_rate_type', 'interest_period_unit', 'start_date'];
 
@@ -36,6 +35,7 @@ class LoanService
         private readonly InterestScheduleService $schedule,
         private readonly LoanHistory $history,
         private readonly CustomerLedgerService $ledger,
+        private readonly LoanSettings $settings,
     ) {}
 
     /**
@@ -49,7 +49,7 @@ class LoanService
             $principal = Money::of($terms['principal']);
 
             $loan = Loan::create([
-                'loan_no' => $this->numbers->next(self::NUMBER_PREFIX),
+                'loan_no' => $this->numbers->nextIn($this->settings->numbering('loan')),
                 'customer_id' => $customer->id,
                 'principal' => $principal,
                 'outstanding_principal' => $principal,
@@ -59,6 +59,9 @@ class LoanService
                 'status' => LoanStatus::Draft,
                 'start_date' => $terms['start_date'],
                 'notes' => $terms['notes'] ?? null,
+                // The interest method is part of the loan's terms: fixed now, so a later settings change
+                // affects new loans only (business-decided).
+                ...$this->settings->interestMethod()->toLoanAttributes(),
             ]);
 
             $this->record($loan, LoanEventType::Created, $actor, ['terms' => $this->terms($loan)]);

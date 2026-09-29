@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Domain\Alert\AlertSettings;
 use App\Domain\Interest\InterestSettings;
+use App\Domain\Settings\LoanSettings;
 use App\Models\User;
 use App\Support\Database\BlueprintMacros;
 use Illuminate\Database\Eloquent\Model;
@@ -21,9 +22,10 @@ class AppServiceProvider extends ServiceProvider
     {
         BlueprintMacros::register();
 
-        // Interest rules are read from configuration on each resolve (the Settings module will replace the source).
-        $this->app->bind(InterestSettings::class, fn () => InterestSettings::fromConfig());
-        $this->app->bind(AlertSettings::class, fn () => AlertSettings::fromConfig());
+        // Resolved from Settings on each resolve: the interest method for NEW loans (existing loans carry
+        // their own, see InterestSettings::forLoan) and the alert threshold.
+        $this->app->bind(InterestSettings::class, fn ($app) => $app->make(LoanSettings::class)->interestMethod());
+        $this->app->bind(AlertSettings::class, fn ($app) => AlertSettings::fromSettings($app->make(LoanSettings::class)));
     }
 
     /**

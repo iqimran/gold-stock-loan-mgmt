@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Payments;
 
+use App\Domain\Settings\LoanSettings;
 use App\Enums\PaymentType;
 use App\Models\Loan;
 use App\Models\Payment;
@@ -39,7 +40,7 @@ class PaymentRequest extends FormRequest
             'customer' => ['nullable', 'string', 'max:30'],
             'type' => ['required', Rule::in(PaymentType::values())],
             'amount' => MoneyRules::positive(),
-            'method' => ['required', Rule::in(config('loans.payment_methods'))],
+            'method' => ['required', Rule::in(app(LoanSettings::class)->paymentMethods())],
             // Future dates are refused here for immediate feedback; the backdating limit is checked by PaymentService.
             'payment_date' => ['required', 'date_format:Y-m-d', 'before_or_equal:today'],
             'reference' => ['nullable', 'string', 'max:100'],
@@ -55,7 +56,7 @@ class PaymentRequest extends FormRequest
     {
         return [
             'amount.decimal' => 'The amount may have at most 2 decimal places.',
-            'method.in' => 'The payment method must be one of: '.implode(', ', config('loans.payment_methods')).'.',
+            'method.in' => 'The payment method must be one of: '.implode(', ', app(LoanSettings::class)->paymentMethods()).'.',
         ];
     }
 

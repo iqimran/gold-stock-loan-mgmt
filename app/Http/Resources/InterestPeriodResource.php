@@ -3,6 +3,7 @@
 namespace App\Http\Resources;
 
 use App\Domain\Interest\InterestPeriodStatusResolver;
+use App\Domain\Settings\LoanSettings;
 use App\Models\InterestPeriod;
 use App\Support\Money;
 use Illuminate\Http\Request;
@@ -39,7 +40,7 @@ class InterestPeriodResource extends JsonResource
             'expected_interest' => $this->expected_interest,
             'paid_interest' => $this->paid_interest,
             'unpaid_interest' => $this->waived_at ? '0.00' : Money::max(Money::sub($this->expected_interest, $this->paid_interest), '0.00'),
-            'status' => InterestPeriodStatusResolver::resolve($this->expected_interest, $this->paid_interest, $this->waived_at !== null, $due, today()->toDateString())->value,
+            'status' => InterestPeriodStatusResolver::resolve($this->expected_interest, $this->paid_interest, $this->waived_at !== null, $due, today()->toDateString(), app(LoanSettings::class)->missedCutoff())->value,
             'waived_at' => $this->waived_at?->toIso8601String(),
             'loan_consecutive_missed' => $this->when($this->resource->hasAttribute('consecutive_missed'), fn () => (int) $this->consecutive_missed),
         ];

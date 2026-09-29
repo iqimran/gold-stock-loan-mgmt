@@ -27,13 +27,15 @@ interface CreateLoanProps {
     rateTypes: string[];
     periodUnits: string[];
     today: string;
+    /** New-loan prefill from Settings. */
+    defaults: { interest_rate: string | null; interest_rate_type: string };
 }
 
 /**
  * New loan, step 1 of the docs/11 flow: customer and terms → saved as a draft. Collateral is added and
  * the loan activated on the loan screen that follows.
  */
-export default function CreateLoan({ customer, customerResults, rateTypes, periodUnits, today }: CreateLoanProps) {
+export default function CreateLoan({ customer, customerResults, rateTypes, periodUnits, today, defaults }: CreateLoanProps) {
     const [query, setQuery] = useState('');
     const [looking, setLooking] = useState(false);
 
@@ -135,6 +137,7 @@ export default function CreateLoan({ customer, customerResults, rateTypes, perio
                                 rateTypes={rateTypes}
                                 periodUnits={periodUnits}
                                 today={today}
+                                defaults={defaults}
                             />
                         </CardContent>
                     </Card>

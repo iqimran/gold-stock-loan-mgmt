@@ -7,6 +7,7 @@ use App\Domain\Customer\CustomerSearch;
 use App\Domain\Loan\LoanSearch;
 use App\Domain\Loan\LoanService;
 use App\Domain\Loan\LoanSummary;
+use App\Domain\Settings\LoanSettings;
 use App\Enums\CollateralStatus;
 use App\Enums\CustomerStatus;
 use App\Enums\InterestPeriodUnit;
@@ -60,7 +61,7 @@ class LoanController extends Controller
      * New loan (docs/11 "New customer + loan"): customer and terms. The loan is saved as a draft;
      * collateral is added and the loan activated on its detail screen.
      */
-    public function create(Request $request, CustomerSearch $customers): Response
+    public function create(Request $request, CustomerSearch $customers, LoanSettings $settings): Response
     {
         Gate::authorize('create', Loan::class);
 
@@ -77,6 +78,8 @@ class LoanController extends Controller
         return Inertia::render('loans/create', [
             ...$this->termOptions(),
             'today' => today()->toDateString(),
+            // Prefill only (Settings); the submitted terms are validated like any other.
+            'defaults' => ['interest_rate' => $settings->defaultInterestRate(), 'interest_rate_type' => $settings->defaultInterestRateType()],
             'customer' => $customer ? ['customer_no' => $customer->customer_no, 'name' => $customer->name, 'mobile' => $customer->mobile] : null,
             'customerResults' => fn () => $request->filled('customer_q')
                 ? $customers->query(['q' => (string) $request->string('customer_q'), 'status' => CustomerStatus::Active->value])->limit(8)->get()
@@ -137,8 +140,9 @@ class LoanController extends Controller
             'summary' => $summary->for($loan),
             'collateral' => $user->can('viewAny', CollateralItem::class) ? $this->collateral($request, $loan) : null,
             'payments' => $user->can('viewAny', Payment::class) ? $this->payments($loan) : null,
-            'collateralTypes' => config('loans.collateral.types'),
-            'maxKarat' => config('loans.collateral.max_karat'),
+            'collateralTypes' => app(LoanSettings::class)->collateralTypes(),
+            'karatOptions' => app(LoanSettings::class)->karatOptions(),
+            'maxKarat' => app(LoanSettings::class)->maxKarat(),
         ]);
     }
 

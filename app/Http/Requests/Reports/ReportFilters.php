@@ -7,6 +7,7 @@ use App\Domain\Reporting\CollateralReport;
 use App\Domain\Reporting\CollectionReport;
 use App\Domain\Reporting\DueReport;
 use App\Domain\Reporting\LoanOutstandingReport;
+use App\Domain\Settings\LoanSettings;
 use App\Enums\CollateralStatus;
 use App\Enums\PaymentType;
 use App\Models\Customer;
@@ -33,7 +34,7 @@ final class ReportFilters
             'collections' => self::common($request, [
                 'paid_from' => ['nullable', 'date_format:Y-m-d'],
                 'paid_to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:paid_from'],
-                'method' => ['nullable', Rule::in(config('loans.payment_methods'))],
+                'method' => ['nullable', Rule::in(app(LoanSettings::class)->paymentMethods())],
                 'type' => ['nullable', Rule::in(PaymentType::values())],
                 'customer' => ['nullable', 'string', 'max:30'],
                 'loan' => ['nullable', 'string', 'max:30'],
@@ -58,7 +59,7 @@ final class ReportFilters
                 'q' => ['nullable', 'string', 'max:191'],
                 'loan' => ['nullable', 'string', 'max:30'],
                 'customer' => ['nullable', 'string', 'max:30'],
-                'type' => ['nullable', Rule::in(config('loans.collateral.types'))],
+                'type' => ['nullable', Rule::in(app(LoanSettings::class)->collateralTypes())],
                 'status' => ['nullable', Rule::in(CollateralStatus::values())],
                 'received_from' => ['nullable', 'date_format:Y-m-d'],
                 'received_to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:received_from'],

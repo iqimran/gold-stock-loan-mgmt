@@ -152,10 +152,11 @@ class ExportTest extends TestCase
             'shop' => ['name' => 'Rupali Jewellers', 'address' => '12 Tanti Bazar, Dhaka', 'phone' => '01700-000000', 'receipt_footer' => null],
             'generatedAt' => '2026-12-15 10:00 (UTC)',
             'generatedBy' => 'Report Clerk',
+            'currency' => ['code' => 'BDT', 'symbol' => '৳'],
         ])->render();
 
         foreach (['Rupali Jewellers', '12 Tanti Bazar, Dhaka', 'Due Report', 'Status', 'Overdue', 'As of', '2026-12-15', 'Report Clerk',
-            $this->a->loan_no, 'Customer X', '2026-10-31', '2026-11-30', 'Totals (2 periods, 1 loans)', '400.00', '150.00', '250.00'] as $text) {
+            $this->a->loan_no, 'Customer X', '2026-10-31', '2026-11-30', 'Totals (2 periods, 1 loans)', '400.00', '150.00', '250.00', 'Amounts in BDT'] as $text) {
             $this->assertStringContainsString($text, $html);
         }
     }

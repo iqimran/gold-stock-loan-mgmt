@@ -4,6 +4,7 @@ import { Divider, DocumentHeader, type PrintShop } from '@/features/printing/doc
 import { PrintPage } from '@/features/printing/print-page';
 import { usePaperWidth } from '@/features/printing/use-paper-width';
 import { useCan } from '@/hooks/use-can';
+import { useCurrency } from '@/hooks/use-currency';
 import { formatDate, formatMoney } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { Link } from '@inertiajs/react';
@@ -32,6 +33,7 @@ function Row({ label, children, strong }: { label: string; children: ReactNode; 
  * Every figure is the server's; the template only lays them out.
  */
 export default function PaymentReceipt({ payment, balances, shop, cashier, autoPrint, justCompleted }: ReceiptProps) {
+    const currency = useCurrency();
     const can = useCan();
     const paper = usePaperWidth();
     const allocation = payment.allocation;
@@ -101,8 +103,8 @@ export default function PaymentReceipt({ payment, balances, shop, cashier, autoP
                     {allocation && allocation.principal !== '0.00' && <Row label="Principal">{formatMoney(allocation.principal)}</Row>}
                     {allocation && allocation.fee !== '0.00' && <Row label="Fee">{formatMoney(allocation.fee)}</Row>}
                     <div className="my-1 border-t border-black" />
-                    <Row label="TOTAL PAID" strong>
-                        {formatMoney(payment.amount)}
+                    <Row label={`TOTAL PAID (${currency.code})`} strong>
+                        {currency.symbol} {formatMoney(payment.amount)}
                     </Row>
                 </dl>
 

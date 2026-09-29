@@ -34,21 +34,23 @@ interface LoanTermsFormProps {
     rateTypes: string[];
     periodUnits: string[];
     today: string;
+    /** New loan: prefill from Settings. */
+    defaults?: { interest_rate: string | null; interest_rate_type: string };
 }
 
 /**
  * Loan terms. Validation and every rule (e.g. terms locked after activation) live on the server; its
  * messages appear under each field. Nothing is calculated here.
  */
-export function LoanTermsForm({ loan, customerNo, rateTypes, periodUnits, today }: LoanTermsFormProps) {
+export function LoanTermsForm({ loan, customerNo, rateTypes, periodUnits, today, defaults }: LoanTermsFormProps) {
     // Terms are editable on a new loan or a draft; once active only the notes can change.
     const termsLocked = loan !== undefined && !loan.actions.edit_terms;
 
     const { data, setData, post, patch, processing, errors, transform } = useForm<LoanTermsData>({
         ...(loan ? {} : { customer: customerNo ?? '' }),
         principal: loan?.principal ?? '',
-        interest_rate: loan?.interest_rate ?? '',
-        interest_rate_type: loan?.interest_rate_type ?? rateTypes[0] ?? 'monthly',
+        interest_rate: loan?.interest_rate ?? defaults?.interest_rate ?? '',
+        interest_rate_type: loan?.interest_rate_type ?? defaults?.interest_rate_type ?? rateTypes[0] ?? 'monthly',
         interest_period_unit: loan?.interest_period_unit ?? periodUnits[0] ?? 'month',
         start_date: loan?.start_date ?? today,
         notes: loan?.notes ?? '',

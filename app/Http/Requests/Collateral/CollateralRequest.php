@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Collateral;
 
+use App\Domain\Settings\LoanSettings;
 use App\Models\CollateralItem;
 use App\Models\Loan;
 use App\Support\Validation\MoneyRules;
@@ -41,9 +42,9 @@ class CollateralRequest extends FormRequest
         $required = $this->route('collateralItem') instanceof CollateralItem ? 'sometimes' : 'required';
 
         return [
-            'type' => [$required, 'string', Rule::in(config('loans.collateral.types'))],
+            'type' => [$required, 'string', Rule::in(app(LoanSettings::class)->collateralTypes())],
             'weight_grams' => [$required, 'numeric', 'decimal:0,3', 'gt:0', 'max:'.self::MAX_WEIGHT],
-            'karat' => ['sometimes', 'nullable', 'numeric', 'decimal:0,2', 'gt:0', 'max:'.config('loans.collateral.max_karat')],
+            'karat' => ['sometimes', 'nullable', 'numeric', 'decimal:0,2', 'gt:0', 'max:'.app(LoanSettings::class)->maxKarat()],
             'estimated_value' => [$required, ...array_slice(MoneyRules::positive(), 1)],
             'description' => ['sometimes', 'nullable', 'string', 'max:2000'],
             'received_at' => ['sometimes', 'nullable', 'date', 'before_or_equal:now'],
@@ -59,10 +60,10 @@ class CollateralRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'type.in' => 'The collateral type must be one of: '.implode(', ', config('loans.collateral.types')).'.',
+            'type.in' => 'The collateral type must be one of: '.implode(', ', app(LoanSettings::class)->collateralTypes()).'.',
             'weight_grams.gt' => 'The weight must be greater than zero.',
             'weight_grams.decimal' => 'The weight may have at most 3 decimal places.',
-            'karat.max' => 'The karat cannot exceed '.config('loans.collateral.max_karat').'.',
+            'karat.max' => 'The karat cannot exceed '.app(LoanSettings::class)->maxKarat().'.',
             'estimated_value.decimal' => 'The estimated value may have at most 2 decimal places.',
             'loan.prohibited' => 'Collateral cannot be moved to another loan.',
             'status.prohibited' => 'Use the release action to change the status.',

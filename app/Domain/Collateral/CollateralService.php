@@ -3,6 +3,7 @@
 namespace App\Domain\Collateral;
 
 use App\Domain\Loan\LoanHistory;
+use App\Domain\Settings\LoanSettings;
 use App\Enums\CollateralStatus;
 use App\Enums\LoanEventType;
 use App\Enums\LoanStatus;
@@ -28,8 +29,6 @@ use Illuminate\Validation\ValidationException;
  */
 class CollateralService
 {
-    public const NUMBER_PREFIX = 'COL';
-
     /** Fields that describe the item; the only ones that can be corrected. */
     public const DETAIL_FIELDS = ['type', 'weight_grams', 'karat', 'estimated_value', 'description', 'received_at'];
 
@@ -42,6 +41,7 @@ class CollateralService
     public function __construct(
         private readonly DocumentNumberGenerator $numbers,
         private readonly LoanHistory $history,
+        private readonly LoanSettings $settings,
     ) {}
 
     /**
@@ -59,7 +59,7 @@ class CollateralService
             }
 
             $item = $locked->collateralItems()->create([
-                'collateral_no' => $this->numbers->next(self::NUMBER_PREFIX),
+                'collateral_no' => $this->numbers->nextIn($this->settings->numbering('collateral')),
                 ...$this->normalise($details),
                 'received_at' => $details['received_at'] ?? now(),
                 'status' => CollateralStatus::Held,

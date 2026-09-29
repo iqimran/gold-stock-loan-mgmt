@@ -4,6 +4,7 @@ namespace App\Domain\Loan;
 
 use App\Domain\Interest\InterestPeriodStatusResolver;
 use App\Domain\Interest\MissedPeriodStreak;
+use App\Domain\Settings\LoanSettings;
 use App\Enums\InterestPeriodStatus;
 use App\Models\InterestPeriod;
 use App\Models\Loan;
@@ -23,6 +24,8 @@ use Illuminate\Support\Facades\DB;
  */
 class LoanSummary
 {
+    public function __construct(private readonly LoanSettings $settings) {}
+
     /**
      * @return array{
      *     principal: string, outstanding_principal: string, principal_repaid: string,
@@ -35,6 +38,7 @@ class LoanSummary
      */
     public function for(Loan $loan, ?CarbonInterface $today = null): array
     {
+        $cutoff = $this->settings->missedCutoff($today);
         $today = ($today ?? today())->toDateString();
 
         $periods = $loan->interestPeriods()->get()->map(fn (InterestPeriod $period) => [
@@ -44,7 +48,7 @@ class LoanSummary
             'expected_interest' => $period->expected_interest,
             'paid_interest' => $period->paid_interest,
             'status' => InterestPeriodStatusResolver::resolve(
-                $period->expected_interest, $period->paid_interest, $period->waived_at !== null, $period->due_date->toDateString(), $today,
+                $period->expected_interest, $period->paid_interest, $period->waived_at !== null, $period->due_date->toDateString(), $today, $cutoff,
             )->value,
         ])->all();
 
@@ -86,7 +90,7 @@ class LoanSummary
             'payments_total' => Money::of((string) (clone $payments)->sum('amount')),
             'payments_count' => (clone $payments)->count(),
             'overdue_periods' => count(array_filter($periods, fn ($period) => $period['status'] === InterestPeriodStatus::Overdue->value)),
-            'consecutive_missed' => count(MissedPeriodStreak::of($periods, $today)),
+            'consecutive_missed' => count(MissedPeriodStreak::of($periods, $cutoff)),
             'next_due_date' => $loan->next_due_date?->toDateString(),
             'last_payment' => $last ? ['date' => substr((string) $last->payment_date, 0, 10), 'amount' => Money::of((string) $last->amount)] : null,
             'periods' => $periods,

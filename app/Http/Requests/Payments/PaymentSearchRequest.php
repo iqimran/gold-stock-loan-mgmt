@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Payments;
 
+use App\Domain\Settings\LoanSettings;
 use App\Enums\PaymentStatus;
 use App\Enums\PaymentType;
 use App\Models\Payment;
@@ -26,7 +27,7 @@ class PaymentSearchRequest extends FormRequest
             'loan' => ['nullable', 'string', 'max:30'],
             'customer' => ['nullable', 'string', 'max:30'],
             'type' => ['nullable', Rule::in(PaymentType::values())],
-            'method' => ['nullable', Rule::in(config('loans.payment_methods'))],
+            'method' => ['nullable', Rule::in(app(LoanSettings::class)->paymentMethods())],
             'status' => ['nullable', Rule::in(PaymentStatus::values())],
             'paid_from' => ['nullable', 'date_format:Y-m-d'],
             'paid_to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:paid_from'],

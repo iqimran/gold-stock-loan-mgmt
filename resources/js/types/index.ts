@@ -29,8 +29,14 @@ export interface FlashMessages {
     status?: string | null;
 }
 
+export interface Currency {
+    code: string;
+    symbol: string;
+}
+
 export interface SharedData {
     name: string;
+    currency: Currency;
     auth: Auth;
     flash: FlashMessages;
     [key: string]: unknown;

@@ -3,6 +3,7 @@
 namespace App\Domain\Reporting;
 
 use App\Domain\Alert\AlertQuery;
+use App\Domain\Alert\AlertSettings;
 use App\Domain\Alert\DueInterestQuery;
 use App\Domain\Loan\LoanSearch;
 use App\Domain\Payment\PaymentSearch;
@@ -153,6 +154,6 @@ class DashboardMetricsService
      */
     public function alerts(): array
     {
-        return $this->alerts->summary() + ['threshold' => (int) config('loans.alerts.missed_period_threshold')];
+        return $this->alerts->summary() + ['threshold' => app(AlertSettings::class)->missedPeriodThreshold];
     }
 }

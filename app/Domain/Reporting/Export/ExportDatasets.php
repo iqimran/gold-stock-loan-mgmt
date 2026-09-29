@@ -11,6 +11,7 @@ use App\Domain\Reporting\CollectionReport;
 use App\Domain\Reporting\CustomerLedgerReport;
 use App\Domain\Reporting\DueReport;
 use App\Domain\Reporting\LoanOutstandingReport;
+use App\Domain\Settings\LoanSettings;
 use App\Enums\PaymentStatus;
 use App\Models\CollateralItem;
 use App\Models\Customer;
@@ -127,7 +128,7 @@ class ExportDatasets
                 'due_date' => $p->due_date->toDateString(),
                 'missed' => (int) $p->getAttribute('consecutive_missed'),
                 'status' => $this->label(InterestPeriodStatusResolver::resolve(
-                    $p->expected_interest, $p->paid_interest, $p->waived_at !== null, $p->due_date->toDateString(), today()->toDateString(),
+                    $p->expected_interest, $p->paid_interest, $p->waived_at !== null, $p->due_date->toDateString(), today()->toDateString(), app(LoanSettings::class)->missedCutoff(),
                 )->value),
             ])->all(),
             [['label' => "Totals ({$totals['periods']} periods, {$totals['loans']} loans)", 'values' => [

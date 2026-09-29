@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Collateral;
 
+use App\Domain\Settings\LoanSettings;
 use App\Enums\CollateralStatus;
 use App\Models\CollateralItem;
 use Illuminate\Contracts\Validation\ValidationRule;
@@ -24,7 +25,7 @@ class CollateralSearchRequest extends FormRequest
             'q' => ['nullable', 'string', 'max:191'],
             'loan' => ['nullable', 'string', 'max:30'],
             'customer' => ['nullable', 'string', 'max:30'],
-            'type' => ['nullable', Rule::in(config('loans.collateral.types'))],
+            'type' => ['nullable', Rule::in(app(LoanSettings::class)->collateralTypes())],
             'status' => ['nullable', Rule::in(CollateralStatus::values())],
             'received_from' => ['nullable', 'date_format:Y-m-d'],
             'received_to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:received_from'],

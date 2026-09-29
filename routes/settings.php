@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Settings\LoanSettingsController;
 use App\Http\Controllers\Settings\PasswordController;
 use App\Http\Controllers\Settings\ProfileController;
 use Illuminate\Support\Facades\Route;
@@ -17,4 +18,8 @@ Route::middleware('auth')->group(function () {
     Route::get('settings/appearance', function () {
         return Inertia::render('settings/appearance');
     })->name('appearance');
+
+    // Module settings (settings.manage, checked in the controller / form request).
+    Route::get('settings/loans', [LoanSettingsController::class, 'edit'])->name('settings.loans.edit');
+    Route::put('settings/loans', [LoanSettingsController::class, 'update'])->name('settings.loans.update');
 });

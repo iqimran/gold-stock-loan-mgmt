@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Domain\Settings\LoanSettings;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -40,6 +41,8 @@ class HandleInertiaRequests extends Middleware
         return [
             ...parent::share($request),
             'name' => config('app.name'),
+            // Display only (Settings); amounts are never converted.
+            'currency' => fn () => app(LoanSettings::class)->currency(),
             'auth' => [
                 'user' => $user ? [
                     'id' => $user->id,
