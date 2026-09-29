@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Domain\Interest\InterestSettings;
 use App\Models\User;
 use App\Support\Database\BlueprintMacros;
 use Illuminate\Database\Eloquent\Model;
@@ -18,6 +19,9 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         BlueprintMacros::register();
+
+        // Interest rules are read from configuration on each resolve (the Settings module will replace the source).
+        $this->app->bind(InterestSettings::class, fn () => InterestSettings::fromConfig());
     }
 
     /**

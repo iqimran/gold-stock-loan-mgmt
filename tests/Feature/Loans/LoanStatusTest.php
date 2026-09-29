@@ -62,7 +62,8 @@ class LoanStatusTest extends TestCase
 
     public function test_draft_is_activated_and_outstanding_reset_to_principal(): void
     {
-        $loan = Loan::factory()->create(['principal' => '75000.00', 'outstanding_principal' => '75000.00']);
+        // Starts this month, so no period is overdue yet (backdated activation: InterestScheduleTest).
+        $loan = Loan::factory()->create(['principal' => '75000.00', 'outstanding_principal' => '75000.00', 'start_date' => '2026-12-01']);
 
         $this->postJson("/api/v1/loans/{$loan->loan_no}/activate")
             ->assertOk()

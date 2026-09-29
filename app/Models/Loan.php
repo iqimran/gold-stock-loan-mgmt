@@ -78,6 +78,14 @@ class Loan extends Model
     }
 
     /**
+     * @return HasMany<InterestPeriod, $this>
+     */
+    public function interestPeriods(): HasMany
+    {
+        return $this->hasMany(InterestPeriod::class)->orderBy('period_start');
+    }
+
+    /**
      * @return HasMany<LoanEvent, $this>
      */
     public function events(): HasMany
