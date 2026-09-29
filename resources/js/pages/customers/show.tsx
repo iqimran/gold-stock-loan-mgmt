@@ -39,7 +39,15 @@ function Detail({ label, children }: { label: string; children: ReactNode }) {
 }
 
 const loanColumns: DataTableColumn<CustomerLoan>[] = [
-    { key: 'loan_no', header: 'Loan no.', cell: (loan) => <span className="font-medium whitespace-nowrap">{loan.loan_no}</span> },
+    {
+        key: 'loan_no',
+        header: 'Loan no.',
+        cell: (loan) => (
+            <Link href={route('loans.show', loan.loan_no)} className="font-medium whitespace-nowrap hover:underline">
+                {loan.loan_no}
+            </Link>
+        ),
+    },
     { key: 'principal', header: 'Principal', cell: (loan) => formatMoney(loan.principal), className: 'text-right tabular-nums' },
     { key: 'outstanding', header: 'Outstanding', cell: (loan) => formatMoney(loan.outstanding_principal), className: 'text-right tabular-nums' },
     {
