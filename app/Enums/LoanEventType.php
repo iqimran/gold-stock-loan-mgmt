@@ -23,4 +23,8 @@ enum LoanEventType: string
     // Payments (payload carries the receipt number and the allocation).
     case PaymentPosted = 'payment_posted';
     case PaymentReversed = 'payment_reversed';
+
+    // Missed-interest alerts (system; information only).
+    case AlertRaised = 'alert_raised';
+    case AlertResolved = 'alert_resolved';
 }

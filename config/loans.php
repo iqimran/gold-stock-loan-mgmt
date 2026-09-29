@@ -55,4 +55,20 @@ return [
 
     'payment_methods' => ['cash', 'bank', 'mobile_banking', 'card', 'other'],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Missed-Interest Alerts
+    |--------------------------------------------------------------------------
+    |
+    | Consecutive missed interest periods that raise an alert ("missed-period alert threshold",
+    | docs/00, docs/01; the docs' example default is 2). Read only through
+    | App\Domain\Alert\AlertSettings, so the Settings module can take it over. An alert is
+    | information only: it never marks a loan defaulted, closes it or touches collateral.
+    |
+    */
+
+    'alerts' => [
+        'missed_period_threshold' => (int) env('ALERT_MISSED_PERIOD_THRESHOLD', 2),
+    ],
+
 ];

@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Domain\Alert\AlertSettings;
 use App\Domain\Interest\InterestSettings;
 use App\Models\User;
 use App\Support\Database\BlueprintMacros;
@@ -22,6 +23,7 @@ class AppServiceProvider extends ServiceProvider
 
         // Interest rules are read from configuration on each resolve (the Settings module will replace the source).
         $this->app->bind(InterestSettings::class, fn () => InterestSettings::fromConfig());
+        $this->app->bind(AlertSettings::class, fn () => AlertSettings::fromConfig());
     }
 
     /**

@@ -2,6 +2,7 @@
 
 namespace App\Domain\Interest;
 
+use App\Domain\Alert\MissedPaymentAlertService;
 use App\Domain\Ledger\CustomerLedgerService;
 use App\Enums\InterestBase;
 use App\Enums\InterestPeriodStatus;
@@ -24,13 +25,14 @@ class InterestScheduleService
         private readonly InterestCalculationService $calculator,
         private readonly InterestSettings $settings,
         private readonly CustomerLedgerService $ledger,
+        private readonly MissedPaymentAlertService $alerts,
     ) {}
 
     /**
      * Brings one loan's periods up to date for $today (business date, application time zone):
-     * creates missing periods, refreshes statuses and the loan's next due date, and charges the
-     * interest of periods that have fallen due to the customer ledger (each period once).
-     * Only open (active/overdue) loans have a running schedule.
+     * creates missing periods, refreshes statuses and the loan's next due date, charges the
+     * interest of periods that have fallen due to the customer ledger (each period once), and
+     * raises/resolves missed-interest alerts. Only open (active/overdue) loans have a running schedule.
      */
     public function sync(Loan $loan, ?CarbonInterface $today = null): InterestSyncResult
     {
@@ -41,6 +43,8 @@ class InterestScheduleService
             $locked = Loan::query()->whereKey($loan->getKey())->lockForUpdate()->firstOrFail();
 
             if (! $locked->status->isOpen()) {
+                $this->alerts->sync($locked, $today); // a closed/cancelled loan has no open alerts
+
                 return new InterestSyncResult(0, 0);
             }
 
@@ -49,6 +53,7 @@ class InterestScheduleService
             $updated = $this->refreshStatuses($locked, $today);
             $this->updateNextDueDate($locked, $calendar, $today);
             $this->ledger->chargeDueInterest($locked, $today);
+            $this->alerts->sync($locked, $today);
 
             return new InterestSyncResult($created, $updated);
         });

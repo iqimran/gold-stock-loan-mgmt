@@ -181,6 +181,7 @@ class LoanService
             // collected for a final period that is not yet due, is charged.
             $this->ledger->chargeDueInterest($loan, today());
             $this->ledger->chargeCollectedInterest($loan, today());
+            $this->schedule->sync($loan); // resolves the closed loan's missed-interest alerts
 
             return $loan;
         });
@@ -204,6 +205,7 @@ class LoanService
 
             // An activated loan's ledger is cleared by one compensating credit (a draft has no entries).
             $this->ledger->clearCancelledLoan($loan, $actor, today());
+            $this->schedule->sync($loan); // resolves the cancelled loan's missed-interest alerts
 
             return $loan;
         });

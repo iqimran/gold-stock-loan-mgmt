@@ -3,6 +3,7 @@
 namespace App\Domain\Loan;
 
 use App\Domain\Interest\InterestPeriodStatusResolver;
+use App\Domain\Interest\MissedPeriodStreak;
 use App\Enums\InterestPeriodStatus;
 use App\Models\InterestPeriod;
 use App\Models\Loan;
@@ -85,34 +86,10 @@ class LoanSummary
             'payments_total' => Money::of((string) (clone $payments)->sum('amount')),
             'payments_count' => (clone $payments)->count(),
             'overdue_periods' => count(array_filter($periods, fn ($period) => $period['status'] === InterestPeriodStatus::Overdue->value)),
-            'consecutive_missed' => $this->consecutiveMissed($periods, $today),
+            'consecutive_missed' => count(MissedPeriodStreak::of($periods, $today)),
             'next_due_date' => $loan->next_due_date?->toDateString(),
             'last_payment' => $last ? ['date' => substr((string) $last->payment_date, 0, 10), 'amount' => Money::of((string) $last->amount)] : null,
             'periods' => $periods,
         ];
-    }
-
-    /**
-     * Overdue periods counted back from the latest past-due period, stopping at the first settled one.
-     *
-     * @param  list<array{due_date: string, status: string}>  $periods
-     */
-    private function consecutiveMissed(array $periods, string $today): int
-    {
-        $count = 0;
-
-        foreach (array_reverse($periods) as $period) {
-            if ($period['due_date'] >= $today) {
-                continue;
-            }
-
-            if ($period['status'] !== InterestPeriodStatus::Overdue->value) {
-                break;
-            }
-
-            $count++;
-        }
-
-        return $count;
     }
 }
