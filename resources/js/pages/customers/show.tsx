@@ -11,7 +11,7 @@ import { formatDate, formatDateTime, formatMoney } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/react';
-import { BookOpen, Pencil, ReceiptText, UserRound } from 'lucide-react';
+import { BookOpen, HandCoins, Pencil, ReceiptText, UserRound } from 'lucide-react';
 import { type ReactNode } from 'react';
 
 interface ShowCustomerProps {
@@ -99,6 +99,13 @@ export default function ShowCustomer({ customer, activeLoans }: ShowCustomerProp
                             <Button variant="outline" asChild>
                                 <Link href={route('customers.edit', customer.customer_no)}>
                                     <Pencil className="size-4" /> Edit
+                                </Link>
+                            </Button>
+                        )}
+                        {can('loans.create') && customer.status === 'active' && (
+                            <Button asChild>
+                                <Link href={route('loans.create', { customer: customer.customer_no })}>
+                                    <HandCoins className="size-4" /> New loan
                                 </Link>
                             </Button>
                         )}

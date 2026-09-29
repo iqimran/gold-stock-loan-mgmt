@@ -6,6 +6,7 @@ use App\Enums\CollateralStatus;
 use App\Enums\LoanStatus;
 use App\Enums\Permission;
 use App\Models\CollateralItem;
+use App\Models\Customer;
 use App\Models\Loan;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -190,6 +191,122 @@ class LoanPagesTest extends TestCase
         $this->actingAs($viewer)->post("/loans/{$loan->loan_no}/collateral", ['type' => 'gold'])->assertForbidden();
         $this->actingAs($viewer)->patch("/collateral/{$item->collateral_no}", ['weight_grams' => '1'])->assertForbidden();
         $this->actingAs($viewer)->post("/collateral/{$item->collateral_no}/release", ['reason' => 'x'])->assertForbidden();
+    }
+
+    public function test_loan_list_is_filtered_and_needs_loans_view(): void
+    {
+        $open = Loan::factory()->active()->create(['start_date' => '2026-10-01']);
+        $closed = Loan::factory()->status(LoanStatus::Closed)->create(['start_date' => '2026-06-01']);
+        $viewer = $this->userWith(Permission::LoansView);
+
+        $this->actingAs($viewer)->get('/loans')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('loans/index')
+                ->has('loans.data', 2)
+                ->where('loans.data.0.loan_no', $open->loan_no) // newest start first
+                ->where('loans.data.0.customer.customer_no', $open->customer->customer_no)
+                ->has('loans.meta'));
+
+        $this->actingAs($viewer)->get('/loans?status=open')
+            ->assertInertia(fn (Assert $page) => $page->has('loans.data', 1)->where('filters.status', 'open'));
+        $this->actingAs($viewer)->get('/loans?q='.urlencode($closed->loan_no))
+            ->assertInertia(fn (Assert $page) => $page->has('loans.data', 1)->where('loans.data.0.status', 'closed'));
+        $this->actingAs($viewer)->from('/loans')->get('/loans?status=bogus')->assertRedirect('/loans')->assertSessionHasErrors('status');
+
+        $this->actingAs($this->userWith(Permission::CustomersView))->get('/loans')->assertForbidden();
+    }
+
+    public function test_new_loan_form_looks_up_active_customers_only(): void
+    {
+        $active = Customer::factory()->create(['name' => 'Salma Active']);
+        $archived = Customer::factory()->archived()->create(['name' => 'Salma Archived']);
+        $user = $this->userWith(Permission::LoansCreate);
+
+        $this->actingAs($user)->get('/loans/create')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('loans/create')
+                ->where('rateTypes', ['monthly', 'yearly'])
+                ->where('periodUnits', ['month'])
+                ->where('today', '2026-12-15')
+                ->where('customer', null));
+
+        $this->actingAs($user)->get('/loans/create?customer_q=salma')
+            ->assertInertia(fn (Assert $page) => $page->has('customerResults', 1)->where('customerResults.0.customer_no', $active->customer_no));
+
+        $this->actingAs($user)->get("/loans/create?customer={$active->customer_no}")
+            ->assertInertia(fn (Assert $page) => $page->where('customer.customer_no', $active->customer_no));
+        $this->actingAs($user)->get("/loans/create?customer={$archived->customer_no}")
+            ->assertInertia(fn (Assert $page) => $page->where('customer', null));
+    }
+
+    public function test_new_loan_is_saved_as_a_draft_and_opens_its_screen(): void
+    {
+        $customer = Customer::factory()->create();
+        $user = $this->userWith(Permission::LoansCreate, Permission::LoansView);
+
+        $this->actingAs($user)->from('/loans/create')->post('/loans', [
+            'customer' => $customer->customer_no, 'principal' => '50000', 'interest_rate' => '2.5',
+            'interest_rate_type' => 'monthly', 'interest_period_unit' => 'month', 'start_date' => '2026-12-15', 'notes' => 'Two bangles',
+        ])
+            ->assertRedirect('/loans/LN-202612-000001')
+            ->assertSessionHas('success', 'Draft loan LN-202612-000001 created. Add its collateral, then activate it.');
+
+        $loan = Loan::sole();
+        $this->assertSame(LoanStatus::Draft, $loan->status);
+        $this->assertSame('50000.00', $loan->principal);
+        $this->assertSame($customer->id, $loan->customer_id);
+    }
+
+    public function test_new_loan_validation_messages_return_to_the_form(): void
+    {
+        $user = $this->userWith(Permission::LoansCreate);
+
+        $this->actingAs($user)->from('/loans/create')->post('/loans', [
+            'customer' => Customer::factory()->archived()->create()->customer_no, 'principal' => '0', 'interest_rate' => '-1',
+            'interest_rate_type' => 'daily', 'interest_period_unit' => 'month', 'start_date' => 'tomorrow',
+        ])
+            ->assertRedirect('/loans/create')
+            ->assertSessionHasErrors(['customer', 'principal', 'interest_rate', 'interest_rate_type', 'start_date']);
+
+        $this->assertDatabaseCount('loans', 0);
+    }
+
+    public function test_draft_terms_are_edited_but_an_active_loan_only_accepts_notes(): void
+    {
+        $user = $this->userWith(Permission::LoansUpdate, Permission::LoansView);
+        $draft = Loan::factory()->create();
+
+        $this->actingAs($user)->get("/loans/{$draft->loan_no}/edit")
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->component('loans/edit')->where('loan.actions.edit_terms', true));
+
+        $this->actingAs($user)->from("/loans/{$draft->loan_no}/edit")->patch("/loans/{$draft->loan_no}", [
+            'principal' => '60000', 'interest_rate' => '3', 'interest_rate_type' => 'monthly', 'interest_period_unit' => 'month', 'start_date' => '2026-12-01', 'notes' => 'Revised',
+        ])->assertRedirect("/loans/{$draft->loan_no}")->assertSessionHas('success');
+        $this->assertSame('60000.00', $draft->fresh()->principal);
+        $this->assertSame('60000.00', $draft->fresh()->outstanding_principal);
+
+        $active = Loan::factory()->active()->create();
+        $this->actingAs($user)->from("/loans/{$active->loan_no}/edit")->patch("/loans/{$active->loan_no}", ['principal' => '1'])
+            ->assertRedirect("/loans/{$active->loan_no}/edit")
+            ->assertSessionHasErrors(['principal' => 'The principal cannot be changed once the loan is active.']);
+        $this->actingAs($user)->from("/loans/{$active->loan_no}/edit")->patch("/loans/{$active->loan_no}", ['notes' => 'Customer called'])
+            ->assertRedirect("/loans/{$active->loan_no}");
+        $this->assertSame('Customer called', $active->fresh()->notes);
+        $this->assertSame('50000.00', $active->fresh()->principal);
+    }
+
+    public function test_loan_create_and_edit_require_their_permissions(): void
+    {
+        $loan = Loan::factory()->create();
+        $viewer = $this->userWith(Permission::LoansView);
+
+        $this->actingAs($viewer)->get('/loans/create')->assertForbidden();
+        $this->actingAs($viewer)->post('/loans', ['customer' => $loan->customer->customer_no])->assertForbidden();
+        $this->actingAs($viewer)->get("/loans/{$loan->loan_no}/edit")->assertForbidden();
+        $this->actingAs($viewer)->patch("/loans/{$loan->loan_no}", ['notes' => 'x'])->assertForbidden();
     }
 
     public function test_customer_page_links_its_loans_to_the_loan_screen(): void

@@ -40,9 +40,9 @@ class LoanSearch
             ->when($filters['customer'] ?? null, fn (Builder $q, string $customerNo) => $q->whereHas('customer', fn (Builder $c) => $c->where('customer_no', $customerNo)))
             ->when($status === 'open', fn (Builder $q) => $q->whereIn('loans.status', LoanStatus::open()))
             ->when($status !== null && $status !== 'open', fn (Builder $q) => $q->where('loans.status', $status))
-            ->when($filters['started_from'] ?? null, fn (Builder $q, string $from) => $q->where('loans.start_date', '>=', $from))
-            ->when($filters['started_to'] ?? null, fn (Builder $q, string $to) => $q->where('loans.start_date', '<=', $to))
-            ->when($filters['due_by'] ?? null, fn (Builder $q, string $date) => $q->whereNotNull('loans.next_due_date')->where('loans.next_due_date', '<=', $date))
+            ->when($filters['started_from'] ?? null, fn (Builder $q, string $from) => $q->whereDate('loans.start_date', '>=', $from))
+            ->when($filters['started_to'] ?? null, fn (Builder $q, string $to) => $q->whereDate('loans.start_date', '<=', $to))
+            ->when($filters['due_by'] ?? null, fn (Builder $q, string $date) => $q->whereNotNull('loans.next_due_date')->whereDate('loans.next_due_date', '<=', $date))
             ->when($filters['rate_min'] ?? null, fn (Builder $q, string $rate) => $q->where('loans.interest_rate', '>=', $rate))
             ->when($filters['rate_max'] ?? null, fn (Builder $q, string $rate) => $q->where('loans.interest_rate', '<=', $rate))
             ->when($filters['overdue'] ?? false, fn (Builder $q) => $q

@@ -4,26 +4,30 @@ use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Customers\CustomerController;
 use App\Http\Controllers\Customers\CustomerImageController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Loans\LoanCollateralController;
 use App\Http\Controllers\Loans\LoanController;
 use App\Http\Controllers\Payments\PaymentController;
 use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
 
 Route::redirect('/', '/dashboard')->name('home');
 
 Route::middleware(['auth'])->group(function () {
-    Route::get('dashboard', function () {
-        return Inertia::render('dashboard');
-    })->name('dashboard');
+    // Every signed-in user; each block is permission-aware (DashboardController).
+    Route::get('dashboard', DashboardController::class)->name('dashboard');
 
     // Customers: DELETE archives; customers are never hard-deleted.
     Route::resource('customers', CustomerController::class);
     Route::post('customers/{customer}/restore', [CustomerController::class, 'restore'])->name('customers.restore');
     Route::get('customers/{customer}/image', CustomerImageController::class)->name('customers.image');
 
-    // Loan detail and its actions (no delete: loans are closed or cancelled).
+    // Loans: list, detail and actions (no delete: loans are closed or cancelled).
+    Route::get('loans', [LoanController::class, 'index'])->name('loans.index');
+    Route::get('loans/create', [LoanController::class, 'create'])->name('loans.create');
+    Route::post('loans', [LoanController::class, 'store'])->name('loans.store');
     Route::get('loans/{loan}', [LoanController::class, 'show'])->name('loans.show');
+    Route::get('loans/{loan}/edit', [LoanController::class, 'edit'])->name('loans.edit');
+    Route::patch('loans/{loan}', [LoanController::class, 'update'])->name('loans.update');
     Route::post('loans/{loan}/activate', [LoanController::class, 'activate'])->name('loans.activate');
     Route::post('loans/{loan}/close', [LoanController::class, 'close'])->name('loans.close');
     Route::post('loans/{loan}/cancel', [LoanController::class, 'cancel'])->name('loans.cancel');

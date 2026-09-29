@@ -3,15 +3,23 @@
 namespace App\Http\Controllers\Loans;
 
 use App\Domain\Collateral\CollateralSearch;
+use App\Domain\Customer\CustomerSearch;
+use App\Domain\Loan\LoanSearch;
 use App\Domain\Loan\LoanService;
 use App\Domain\Loan\LoanSummary;
 use App\Enums\CollateralStatus;
+use App\Enums\CustomerStatus;
+use App\Enums\InterestPeriodUnit;
+use App\Enums\InterestRateType;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Loans\LoanRequest;
+use App\Http\Requests\Loans\LoanSearchRequest;
 use App\Http\Requests\Loans\LoanStatusRequest;
 use App\Http\Resources\CollateralResource;
 use App\Http\Resources\CustomerResource;
 use App\Http\Resources\LoanResource;
 use App\Models\CollateralItem;
+use App\Models\Customer;
 use App\Models\Loan;
 use App\Models\Payment;
 use App\Support\Money;
@@ -28,6 +36,94 @@ use Inertia\Response;
  */
 class LoanController extends Controller
 {
+    /**
+     * Loan list (docs/06 "Loan list"), using the same search as the API.
+     */
+    public function index(LoanSearchRequest $request, LoanSearch $search): Response
+    {
+        $filters = $request->filters();
+
+        return Inertia::render('loans/index', [
+            'loans' => LoanResource::collection($search->paginate($filters, $request->integer('per_page', 20))),
+            'filters' => [
+                'q' => $filters['q'],
+                'status' => $filters['status'] ?? '',
+                'overdue' => $filters['overdue'],
+                'started_from' => $filters['started_from'] ?? '',
+                'started_to' => $filters['started_to'] ?? '',
+                'due_by' => $filters['due_by'] ?? '',
+            ],
+        ]);
+    }
+
+    /**
+     * New loan (docs/11 "New customer + loan"): customer and terms. The loan is saved as a draft;
+     * collateral is added and the loan activated on its detail screen.
+     */
+    public function create(Request $request, CustomerSearch $customers): Response
+    {
+        Gate::authorize('create', Loan::class);
+
+        $request->validate([
+            'customer_q' => ['nullable', 'string', 'max:191'],
+            'customer' => ['nullable', 'string', 'max:30'],
+        ]);
+
+        // New loans only for active customers (LoanRequest enforces the same).
+        $customer = $request->filled('customer')
+            ? Customer::query()->active()->where('customer_no', $request->string('customer'))->first()
+            : null;
+
+        return Inertia::render('loans/create', [
+            ...$this->termOptions(),
+            'today' => today()->toDateString(),
+            'customer' => $customer ? ['customer_no' => $customer->customer_no, 'name' => $customer->name, 'mobile' => $customer->mobile] : null,
+            'customerResults' => fn () => $request->filled('customer_q')
+                ? $customers->query(['q' => (string) $request->string('customer_q'), 'status' => CustomerStatus::Active->value])->limit(8)->get()
+                    ->map(fn (Customer $c) => ['customer_no' => $c->customer_no, 'name' => $c->name, 'mobile' => $c->mobile, 'active_loans' => $c->active_loans_count])
+                    ->all()
+                : [],
+        ]);
+    }
+
+    public function store(LoanRequest $request, LoanService $loans): RedirectResponse
+    {
+        $loan = $loans->create($request->customer(), $request->terms(), $request->user());
+
+        return to_route('loans.show', $loan)->with('success', "Draft loan {$loan->loan_no} created. Add its collateral, then activate it.");
+    }
+
+    public function edit(Request $request, Loan $loan): Response
+    {
+        Gate::authorize('update', $loan);
+
+        return Inertia::render('loans/edit', [
+            'loan' => (new LoanResource($loan->load('customer')))->resolve($request),
+            ...$this->termOptions(),
+        ]);
+    }
+
+    /**
+     * Draft: terms and notes. Any other status: notes only (LoanService refuses changed terms).
+     */
+    public function update(LoanRequest $request, Loan $loan, LoanService $loans): RedirectResponse
+    {
+        $loans->update($loan, $request->terms(), $request->user());
+
+        return to_route('loans.show', $loan)->with('success', "Loan {$loan->loan_no} updated.");
+    }
+
+    /**
+     * @return array{rateTypes: list<string>, periodUnits: list<string>}
+     */
+    private function termOptions(): array
+    {
+        return [
+            'rateTypes' => InterestRateType::values(),
+            'periodUnits' => InterestPeriodUnit::values(),
+        ];
+    }
+
     public function show(Request $request, Loan $loan, LoanSummary $summary): Response
     {
         Gate::authorize('view', $loan);

@@ -40,8 +40,8 @@ class PaymentSearch
             ->when($filters['type'] ?? null, fn (Builder $q, string $type) => $q->where('payments.type', $type))
             ->when($filters['method'] ?? null, fn (Builder $q, string $method) => $q->where('payments.method', $method))
             ->when($filters['status'] ?? null, fn (Builder $q, string $status) => $q->where('payments.status', $status))
-            ->when($filters['paid_from'] ?? null, fn (Builder $q, string $from) => $q->where('payments.payment_date', '>=', $from))
-            ->when($filters['paid_to'] ?? null, fn (Builder $q, string $to) => $q->where('payments.payment_date', '<=', $to))
+            ->when($filters['paid_from'] ?? null, fn (Builder $q, string $from) => $q->whereDate('payments.payment_date', '>=', $from))
+            ->when($filters['paid_to'] ?? null, fn (Builder $q, string $to) => $q->whereDate('payments.payment_date', '<=', $to))
             ->orderByDesc('payments.payment_date')
             ->orderByDesc('payments.id');
     }

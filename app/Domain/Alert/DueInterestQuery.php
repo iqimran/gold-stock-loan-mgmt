@@ -4,6 +4,7 @@ namespace App\Domain\Alert;
 
 use App\Enums\LoanStatus;
 use App\Models\InterestPeriod;
+use App\Support\Money;
 use Carbon\CarbonInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
@@ -68,6 +69,50 @@ class DueInterestQuery
     public function paginate(array $filters, int $perPage = 20): LengthAwarePaginator
     {
         return $this->query($filters)->paginate($perPage)->withQueryString();
+    }
+
+    /**
+     * Unpaid interest and number of periods matching the filters (same conditions as the list).
+     *
+     * @param  array<string, mixed>  $filters
+     * @return array{amount: string, periods: int}
+     */
+    public function totals(array $filters, ?CarbonInterface $today = null): array
+    {
+        $row = $this->query($filters, $today)->reorder()->toBase()
+            ->select([])
+            ->selectRaw('coalesce(sum(interest_periods.expected_interest - interest_periods.paid_interest), 0) as amount, count(*) as periods')
+            ->first();
+
+        return ['amount' => Money::of((string) $row->amount), 'periods' => (int) $row->periods];
+    }
+
+    /**
+     * Overdue interest per loan, oldest overdue first (dashboard "overdue accounts").
+     *
+     * @return list<array{loan_id: int, overdue_interest: string, overdue_periods: int, oldest_due_date: string, consecutive_missed: int}>
+     */
+    public function overdueByLoan(int $limit, ?CarbonInterface $today = null): array
+    {
+        $todayString = ($today ?? today())->toDateString();
+
+        return $this->query(['status' => 'overdue'], $today)->reorder()->toBase()
+            ->select('interest_periods.loan_id')
+            ->selectRaw('sum(interest_periods.expected_interest - interest_periods.paid_interest) as overdue_interest, count(*) as overdue_periods, min(interest_periods.due_date) as oldest_due_date')
+            ->selectSub($this->consecutiveMissed($todayString), 'consecutive_missed')
+            ->groupBy('interest_periods.loan_id')
+            ->orderBy('oldest_due_date')
+            ->orderBy('interest_periods.loan_id')
+            ->limit($limit)
+            ->get()
+            ->map(fn (object $row) => [
+                'loan_id' => (int) $row->loan_id,
+                'overdue_interest' => Money::of((string) $row->overdue_interest),
+                'overdue_periods' => (int) $row->overdue_periods,
+                'oldest_due_date' => substr((string) $row->oldest_due_date, 0, 10),
+                'consecutive_missed' => (int) $row->consecutive_missed,
+            ])
+            ->all();
     }
 
     /**

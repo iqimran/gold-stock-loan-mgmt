@@ -18,7 +18,7 @@ import { formatDate, formatDateTime, formatMoney } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, usePage } from '@inertiajs/react';
-import { BookOpen, CircleAlert, LoaderCircle, Plus, ReceiptText } from 'lucide-react';
+import { BookOpen, CircleAlert, LoaderCircle, Pencil, Plus, ReceiptText } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 
 interface ShowLoanProps {
@@ -251,6 +251,13 @@ export default function ShowLoan({ loan, customer, summary, collateral, payments
                                 </Link>
                             </Button>
                         )}
+                        {loan.actions.update && (
+                            <Button variant="outline" asChild>
+                                <Link href={route('loans.edit', loan.loan_no)}>
+                                    <Pencil className="size-4" /> Edit
+                                </Link>
+                            </Button>
+                        )}
                         <LoanActions loan={loan} />
                     </div>
                 </div>
@@ -264,6 +271,28 @@ export default function ShowLoan({ loan, customer, summary, collateral, payments
                             <Button variant="outline" size="sm" className="mt-2" onClick={retry}>
                                 Try again
                             </Button>
+                        </AlertDescription>
+                    </Alert>
+                )}
+
+                {loan.status === 'draft' && (
+                    <Alert>
+                        <CircleAlert className="size-4" />
+                        <AlertTitle>Draft loan — next steps</AlertTitle>
+                        <AlertDescription>
+                            <ol className="list-inside list-decimal">
+                                <li>
+                                    Add the collateral held against this loan
+                                    {collateral && ` (${collateral.held_count} item(s) recorded so far)`}.
+                                </li>
+                                <li>Review the terms and collateral{loan.actions.update ? ' (use Edit to correct the terms)' : ''}.</li>
+                                <li>Activate the loan: its terms are then locked and interest starts running.</li>
+                            </ol>
+                            {collateral && canAddCollateral && (
+                                <Button size="sm" className="mt-2" onClick={() => setTab('collateral')}>
+                                    <Plus className="size-4" /> Go to collateral
+                                </Button>
+                            )}
                         </AlertDescription>
                     </Alert>
                 )}

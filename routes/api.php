@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\V1\AlertController;
 use App\Http\Controllers\Api\V1\CollateralController;
 use App\Http\Controllers\Api\V1\CurrentUserController;
 use App\Http\Controllers\Api\V1\CustomerController;
+use App\Http\Controllers\Api\V1\DashboardController;
 use App\Http\Controllers\Api\V1\InterestPeriodController;
 use App\Http\Controllers\Api\V1\LoanController;
 use App\Http\Controllers\Api\V1\PaymentController;
@@ -53,6 +54,10 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         // Missed-interest alerts and due/overdue views (read-only).
         Route::get('alerts', [AlertController::class, 'index'])->name('alerts.index');
         Route::get('dashboard/missed-payment-alerts', [AlertController::class, 'summary'])->name('dashboard.missed-payment-alerts');
+        Route::get('dashboard/loan-summary', [DashboardController::class, 'loanSummary'])->name('dashboard.loan-summary');
+        Route::get('dashboard/collections', [DashboardController::class, 'collections'])->name('dashboard.collections');
+        Route::get('dashboard/due-interest', [DashboardController::class, 'dueInterest'])->name('dashboard.due-interest');
+        Route::get('dashboard/overdue-accounts', [DashboardController::class, 'overdueAccounts'])->name('dashboard.overdue-accounts');
         Route::get('interest-periods', [InterestPeriodController::class, 'index'])->name('interest-periods.index');
         Route::get('loans/{loan}/interest-periods', [InterestPeriodController::class, 'forLoan'])->name('loans.interest-periods');
     });
