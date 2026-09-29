@@ -44,6 +44,7 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         Route::get('payments', [PaymentController::class, 'index'])->name('payments.index');
         Route::post('payments', [PaymentController::class, 'store'])->name('payments.store');
         Route::get('payments/{payment}', [PaymentController::class, 'show'])->name('payments.show');
+        Route::post('payments/{payment}/reverse', [PaymentController::class, 'reverse'])->name('payments.reverse');
         Route::get('loans/{loan}/payments', [PaymentController::class, 'forLoan'])->name('loans.payments');
         Route::get('customers/{customer}/payments', [PaymentController::class, 'forCustomer'])->name('customers.payments');
     });

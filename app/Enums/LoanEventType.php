@@ -22,4 +22,5 @@ enum LoanEventType: string
 
     // Payments (payload carries the receipt number and the allocation).
     case PaymentPosted = 'payment_posted';
+    case PaymentReversed = 'payment_reversed';
 }

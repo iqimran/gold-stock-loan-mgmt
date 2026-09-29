@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Domain\Payment\PaymentReversalService;
 use App\Domain\Payment\PaymentSearch;
 use App\Domain\Payment\PaymentService;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Payments\PaymentRequest;
 use App\Http\Requests\Payments\PaymentSearchRequest;
+use App\Http\Requests\Payments\ReversePaymentRequest;
 use App\Http\Resources\PaymentResource;
 use App\Models\Customer;
 use App\Models\Loan;
@@ -17,7 +19,7 @@ use Illuminate\Support\Facades\Gate;
 
 /**
  * Thin HTTP layer: validation in PaymentRequest, every calculation and rule in PaymentService.
- * There is no update or delete: a posted payment is only ever reversed (docs/tasks/011).
+ * There is no update or delete: a posted payment is only ever reversed (PaymentReversalService).
  */
 class PaymentController extends Controller
 {
@@ -66,5 +68,15 @@ class PaymentController extends Controller
         Gate::authorize('view', $payment);
 
         return new PaymentResource($payment->load(PaymentSearch::RELATIONS));
+    }
+
+    /**
+     * POST /payments/{payment}/reverse (docs/04): voids the payment; it stays visible as reversed.
+     */
+    public function reverse(ReversePaymentRequest $request, Payment $payment, PaymentReversalService $reversals): PaymentResource
+    {
+        $reversed = $reversals->reverse($payment, $request->user(), $request->validated('reason'));
+
+        return new PaymentResource($reversed->load(PaymentSearch::RELATIONS));
     }
 }

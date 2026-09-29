@@ -23,8 +23,14 @@ enum LedgerEntryType: string
     /** Credit: an activated loan was cancelled; clears what the loan still showed as owed. */
     case LoanCancelled = 'loan_cancelled';
 
+    /** Debit: a reversed payment no longer counts as received (compensates its payment_received). */
+    case PaymentReversed = 'payment_reversed';
+
+    /** Credit: the fee of a reversed fee payment is no longer charged (compensates its fee_charged). */
+    case FeeReversed = 'fee_reversed';
+
     public function isDebit(): bool
     {
-        return in_array($this, [self::LoanDisbursed, self::InterestCharged, self::FeeCharged], true);
+        return in_array($this, [self::LoanDisbursed, self::InterestCharged, self::FeeCharged, self::PaymentReversed], true);
     }
 }

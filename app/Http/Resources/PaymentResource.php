@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Enums\PaymentStatus;
 use App\Models\Payment;
 use App\Models\PaymentAllocation;
 use App\Support\Money;
@@ -50,7 +51,10 @@ class PaymentResource extends JsonResource
                 ])->values(),
             ]),
             'reversed_at' => $this->reversed_at?->toIso8601String(),
+            'reversed_by' => $this->whenLoaded('reverser', fn () => $this->reverser?->name),
             'reversal_reason' => $this->reversal_reason,
+            // UI hint only; the server re-checks permission and the reversal rules.
+            'can_reverse' => $this->status === PaymentStatus::Posted && ($request->user()?->can('reverse', $this->resource) ?? false),
             'created_at' => $this->created_at?->toIso8601String(),
         ];
     }

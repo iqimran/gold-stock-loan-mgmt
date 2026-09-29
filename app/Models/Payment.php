@@ -74,6 +74,14 @@ class Payment extends Model
     }
 
     /**
+     * @return BelongsTo<User, $this>
+     */
+    public function reverser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'reversed_by');
+    }
+
+    /**
      * @return HasMany<PaymentAllocation, $this>
      */
     public function allocations(): HasMany

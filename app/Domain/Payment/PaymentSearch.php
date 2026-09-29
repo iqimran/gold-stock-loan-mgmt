@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\Builder;
  */
 class PaymentSearch
 {
-    public const RELATIONS = ['loan:id,loan_no,status', 'customer:id,customer_no,name,mobile', 'allocations.interestPeriod:id,period_start,period_end,due_date'];
+    public const RELATIONS = ['loan:id,loan_no,status', 'customer:id,customer_no,name,mobile', 'allocations.interestPeriod:id,period_start,period_end,due_date', 'reverser:id,name'];
 
     /**
      * @param  array<string, mixed>  $filters
