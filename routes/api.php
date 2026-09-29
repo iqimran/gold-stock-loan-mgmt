@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\V1\CollateralController;
 use App\Http\Controllers\Api\V1\CurrentUserController;
 use App\Http\Controllers\Api\V1\CustomerController;
 use App\Http\Controllers\Api\V1\LoanController;
@@ -29,5 +30,13 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         Route::post('loans/{loan}/activate', [LoanController::class, 'activate'])->name('loans.activate');
         Route::post('loans/{loan}/close', [LoanController::class, 'close'])->name('loans.close');
         Route::post('loans/{loan}/cancel', [LoanController::class, 'cancel'])->name('loans.cancel');
+
+        // Collateral (docs/04-api.md). No DELETE: items are released, never deleted.
+        Route::get('loans/{loan}/collateral', [CollateralController::class, 'forLoan'])->name('loans.collateral.index');
+        Route::post('loans/{loan}/collateral', [CollateralController::class, 'store'])->name('loans.collateral.store');
+        Route::get('collateral', [CollateralController::class, 'index'])->name('collateral.index');
+        Route::get('collateral/{collateralItem}', [CollateralController::class, 'show'])->name('collateral.show');
+        Route::match(['put', 'patch'], 'collateral/{collateralItem}', [CollateralController::class, 'update'])->name('collateral.update');
+        Route::post('collateral/{collateralItem}/release', [CollateralController::class, 'release'])->name('collateral.release');
     });
 });

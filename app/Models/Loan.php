@@ -78,6 +78,14 @@ class Loan extends Model
     }
 
     /**
+     * @return HasMany<CollateralItem, $this>
+     */
+    public function collateralItems(): HasMany
+    {
+        return $this->hasMany(CollateralItem::class);
+    }
+
+    /**
      * @return HasMany<InterestPeriod, $this>
      */
     public function interestPeriods(): HasMany

@@ -14,4 +14,9 @@ enum LoanEventType: string
     case OverdueCleared = 'overdue_cleared';
     case Closed = 'closed';
     case Cancelled = 'cancelled';
+
+    // Collateral held against the loan (payload carries the collateral number).
+    case CollateralAdded = 'collateral_added';
+    case CollateralUpdated = 'collateral_updated';
+    case CollateralReleased = 'collateral_released';
 }

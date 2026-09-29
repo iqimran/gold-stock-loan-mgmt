@@ -3,6 +3,7 @@
 namespace Tests\Feature\Security;
 
 use App\Enums\SystemRole;
+use App\Models\CollateralItem;
 use App\Models\Customer;
 use App\Models\Loan;
 use App\Models\Role;
@@ -62,6 +63,7 @@ class RouteAuthorizationTest extends TestCase
         return [
             'customer' => Customer::factory()->create()->customer_no,
             'loan' => Loan::factory()->create()->loan_no,
+            'collateralItem' => CollateralItem::factory()->create()->collateral_no,
             'user' => User::factory()->create()->id,
             'role' => Role::findByName(SystemRole::GeneralUser->value)->id,
         ];

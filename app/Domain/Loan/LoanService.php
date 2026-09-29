@@ -33,6 +33,7 @@ class LoanService
         private readonly DocumentNumberGenerator $numbers,
         private readonly LoanSettlement $settlement,
         private readonly InterestScheduleService $schedule,
+        private readonly LoanHistory $history,
     ) {}
 
     /**
@@ -239,12 +240,7 @@ class LoanService
      */
     private function record(Loan $loan, LoanEventType $type, ?User $actor, array $payload): void
     {
-        $loan->events()->create([
-            'event_type' => $type,
-            'event_date' => now(),
-            'payload' => $payload,
-            'actor_id' => $actor?->id,
-        ]);
+        $this->history->record($loan, $type, $actor, $payload);
     }
 
     /**

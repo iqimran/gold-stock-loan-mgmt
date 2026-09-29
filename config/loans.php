@@ -28,4 +28,19 @@ return [
         'yearly_conversion' => env('INTEREST_YEARLY_CONVERSION', 'twelfths'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Collateral
+    |--------------------------------------------------------------------------
+    |
+    | Accepted collateral types ("gold, diamond, mixed/other (configurable)", docs/01) until the
+    | Settings module manages them. Karat is optional (diamonds have none) and at most 24 (pure gold).
+    |
+    */
+
+    'collateral' => [
+        'types' => ['gold', 'diamond', 'mixed', 'other'],
+        'max_karat' => '24',
+    ],
+
 ];
