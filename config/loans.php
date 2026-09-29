@@ -67,6 +67,20 @@ return [
     |
     */
 
+    /*
+    |--------------------------------------------------------------------------
+    | Exports
+    |--------------------------------------------------------------------------
+    |
+    | PDF/Excel exports run within the request (there is no queued-export infrastructure); above
+    | this many rows the user is asked to narrow the filters.
+    |
+    */
+
+    'exports' => [
+        'max_rows' => (int) env('EXPORT_MAX_ROWS', 5000),
+    ],
+
     'alerts' => [
         'missed_period_threshold' => (int) env('ALERT_MISSED_PERIOD_THRESHOLD', 2),
     ],

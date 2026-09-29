@@ -1,4 +1,5 @@
 import { DataTable, type DataTableColumn } from '@/components/data-table';
+import { ExportButtons } from '@/components/export-buttons';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
@@ -130,13 +131,16 @@ export default function CustomersIndex({ customers, filters }: CustomersIndexPro
             <div className="space-y-6 p-4 md:p-6">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                     <Heading title="Customers" description="Loan customers with their interest due and missed periods." />
-                    {can('customers.create') && (
-                        <Button asChild>
-                            <Link href={route('customers.create')}>
-                                <Plus className="size-4" /> New customer
-                            </Link>
-                        </Button>
-                    )}
+                    <div className="flex flex-wrap items-center gap-2">
+                        <ExportButtons routeName="customers.export" filters={filters} />
+                        {can('customers.create') && (
+                            <Button asChild>
+                                <Link href={route('customers.create')}>
+                                    <Plus className="size-4" /> New customer
+                                </Link>
+                            </Button>
+                        )}
+                    </div>
                 </div>
 
                 <form onSubmit={apply} className="space-y-2" aria-label="Filter customers">

@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Customers\CustomerController;
 use App\Http\Controllers\Customers\CustomerImageController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\ExportController;
 use App\Http\Controllers\Loans\LoanCollateralController;
 use App\Http\Controllers\Loans\LoanController;
 use App\Http\Controllers\Payments\PaymentController;
@@ -15,6 +16,12 @@ Route::redirect('/', '/dashboard')->name('home');
 Route::middleware(['auth'])->group(function () {
     // Every signed-in user; each block is permission-aware (DashboardController).
     Route::get('dashboard', DashboardController::class)->name('dashboard');
+
+    // PDF/Excel exports (reports.export + the data's own view permission). Before the {model} routes.
+    Route::get('reports/{report}/export', [ExportController::class, 'report'])->name('reports.export');
+    Route::get('loans/export', [ExportController::class, 'loans'])->name('loans.export');
+    Route::get('payments/export', [ExportController::class, 'payments'])->name('payments.export');
+    Route::get('customers/export', [ExportController::class, 'customers'])->name('customers.export');
 
     // Customers: DELETE archives; customers are never hard-deleted.
     Route::resource('customers', CustomerController::class);

@@ -50,6 +50,7 @@ class PaymentResource extends JsonResource
                     'interest' => $a->interest_amount,
                 ])->values(),
             ]),
+            'staff' => $this->whenLoaded('creator', fn () => $this->creator?->name),
             'reversed_at' => $this->reversed_at?->toIso8601String(),
             'reversed_by' => $this->whenLoaded('reverser', fn () => $this->reverser?->name),
             'reversal_reason' => $this->reversal_reason,

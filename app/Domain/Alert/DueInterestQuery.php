@@ -75,16 +75,38 @@ class DueInterestQuery
      * Unpaid interest and number of periods matching the filters (same conditions as the list).
      *
      * @param  array<string, mixed>  $filters
-     * @return array{amount: string, periods: int}
+     * @return array{amount: string, periods: int, expected: string, paid: string, loans: int}
      */
     public function totals(array $filters, ?CarbonInterface $today = null): array
     {
         $row = $this->query($filters, $today)->reorder()->toBase()
             ->select([])
             ->selectRaw('coalesce(sum(interest_periods.expected_interest - interest_periods.paid_interest), 0) as amount, count(*) as periods')
+            ->selectRaw('coalesce(sum(interest_periods.expected_interest), 0) as expected, coalesce(sum(interest_periods.paid_interest), 0) as paid')
+            ->selectRaw('count(distinct interest_periods.loan_id) as loans')
             ->first();
 
-        return ['amount' => Money::of((string) $row->amount), 'periods' => (int) $row->periods];
+        return [
+            'amount' => Money::of((string) $row->amount),
+            'periods' => (int) $row->periods,
+            'expected' => Money::of((string) $row->expected),
+            'paid' => Money::of((string) $row->paid),
+            'loans' => (int) $row->loans,
+        ];
+    }
+
+    /**
+     * Correlated subquery: a loan's unpaid interest due today or earlier (the "due interest" rule of this
+     * class, per loan). $loanIdColumn is the outer query's loan id column, e.g. "loans.id".
+     */
+    public function dueToDateForLoan(string $loanIdColumn, ?CarbonInterface $today = null): QueryBuilder
+    {
+        return DB::table('interest_periods as d')
+            ->whereColumn('d.loan_id', $loanIdColumn)
+            ->where('d.due_date', '<=', ($today ?? today())->toDateString())
+            ->whereNull('d.waived_at')
+            ->whereColumn('d.paid_interest', '<', 'd.expected_interest')
+            ->selectRaw('coalesce(sum(d.expected_interest - d.paid_interest), 0)');
     }
 
     /**

@@ -1,4 +1,5 @@
 import { DataTable, type DataTableColumn } from '@/components/data-table';
+import { ExportButtons } from '@/components/export-buttons';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
@@ -119,13 +120,16 @@ export default function LoansIndex({ loans, filters }: { loans: Paginated<Loan>;
             <div className="space-y-6 p-4 md:p-6">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                     <Heading title="Loans" description="All loans with their outstanding principal and next due date." />
-                    {can('loans.create') && (
-                        <Button asChild>
-                            <Link href={route('loans.create')}>
-                                <Plus className="size-4" /> New loan
-                            </Link>
-                        </Button>
-                    )}
+                    <div className="flex flex-wrap items-center gap-2">
+                        <ExportButtons routeName="loans.export" filters={filters} />
+                        {can('loans.create') && (
+                            <Button asChild>
+                                <Link href={route('loans.create')}>
+                                    <Plus className="size-4" /> New loan
+                                </Link>
+                            </Button>
+                        )}
+                    </div>
                 </div>
 
                 <form onSubmit={apply} className="space-y-2" aria-label="Filter loans">

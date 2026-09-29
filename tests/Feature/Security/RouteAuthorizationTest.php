@@ -66,6 +66,7 @@ class RouteAuthorizationTest extends TestCase
             'loan' => Loan::factory()->create()->loan_no,
             'collateralItem' => CollateralItem::factory()->create()->collateral_no,
             'payment' => Payment::factory()->create()->receipt_no,
+            'report' => 'collections',
             'user' => User::factory()->create()->id,
             'role' => Role::findByName(SystemRole::GeneralUser->value)->id,
         ];

@@ -1,4 +1,5 @@
 import { DataTable, type DataTableColumn } from '@/components/data-table';
+import { ExportButtons } from '@/components/export-buttons';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
@@ -112,13 +113,16 @@ export default function PaymentsIndex({ payments, filters, types, methods }: Pay
             <div className="space-y-6 p-4 md:p-6">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                     <Heading title="Payments" description="Payments received against loans. Reversed payments stay listed." />
-                    {can('payments.create') && (
-                        <Button asChild>
-                            <Link href={route('payments.create')}>
-                                <Plus className="size-4" /> Record payment
-                            </Link>
-                        </Button>
-                    )}
+                    <div className="flex flex-wrap items-center gap-2">
+                        <ExportButtons routeName="payments.export" filters={filters} />
+                        {can('payments.create') && (
+                            <Button asChild>
+                                <Link href={route('payments.create')}>
+                                    <Plus className="size-4" /> Record payment
+                                </Link>
+                            </Button>
+                        )}
+                    </div>
                 </div>
 
                 <form onSubmit={apply} className="space-y-2" aria-label="Filter payments">

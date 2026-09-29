@@ -11,7 +11,6 @@ use App\Models\Loan;
 use App\Models\Payment;
 use App\Support\Money;
 use Carbon\CarbonImmutable;
-use Illuminate\Support\Facades\DB;
 
 /**
  * Dashboard metrics (docs/01 "Dashboard", docs/07 "DashboardMetricsService"). Every figure reuses the
@@ -32,6 +31,7 @@ class DashboardMetricsService
         private readonly DueInterestQuery $due,
         private readonly AlertQuery $alerts,
         private readonly PaymentSearch $payments,
+        private readonly CollectionReport $collections,
     ) {}
 
     /**
@@ -70,35 +70,19 @@ class DashboardMetricsService
         $from = $month->startOfMonth()->toDateString();
         $to = $month->endOfMonth()->toDateString();
 
-        $totals = DB::table('payments')
-            ->whereNull('reversed_at')
-            // whereDate: SQLite stores DATE values with a time part, which whereBetween would miss on the last day.
-            ->whereDate('payment_date', '>=', $from)
-            ->whereDate('payment_date', '<=', $to)
-            ->selectRaw('count(*) as payments, coalesce(sum(amount), 0) as total')
-            ->first();
-
-        $split = DB::table('payment_allocations as a')
-            ->join('payments as p', 'p.id', '=', 'a.payment_id')
-            ->whereNull('p.reversed_at')
-            ->whereDate('p.payment_date', '>=', $from)
-            ->whereDate('p.payment_date', '<=', $to)
-            ->selectRaw('coalesce(sum(a.interest_amount), 0) as interest, coalesce(sum(a.principal_amount), 0) as principal, coalesce(sum(a.fee_amount), 0) as fees')
-            ->first();
-
-        $interest = Money::of((string) $split->interest);
-        $fees = Money::of((string) $split->fees);
+        // The Collection Report's totals, for one month: the dashboard and the report always agree.
+        $totals = $this->collections->totals(['paid_from' => $from, 'paid_to' => $to]);
 
         return [
             'month' => $month->format('Y-m'),
             'from' => $from,
             'to' => $to,
-            'total' => Money::of((string) $totals->total),
-            'payments' => (int) $totals->payments,
-            'interest' => $interest,
-            'principal' => Money::of((string) $split->principal),
-            'fees' => $fees,
-            'revenue' => Money::add($interest, $fees),
+            'total' => $totals['gross'],
+            'payments' => $totals['payments'],
+            'interest' => $totals['interest'],
+            'principal' => $totals['principal'],
+            'fees' => $totals['fees'],
+            'revenue' => $totals['revenue'],
         ];
     }
 

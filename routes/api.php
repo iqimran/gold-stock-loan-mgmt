@@ -8,9 +8,11 @@ use App\Http\Controllers\Api\V1\DashboardController;
 use App\Http\Controllers\Api\V1\InterestPeriodController;
 use App\Http\Controllers\Api\V1\LoanController;
 use App\Http\Controllers\Api\V1\PaymentController;
+use App\Http\Controllers\Api\V1\ReportController;
 use App\Http\Controllers\Api\V1\TokenController;
 use App\Http\Controllers\Api\V1\UserController;
 use App\Http\Controllers\Customers\CustomerImageController;
+use App\Http\Controllers\ExportController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->name('api.v1.')->group(function () {
@@ -22,6 +24,12 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         Route::delete('auth/token', [TokenController::class, 'destroy'])->name('auth.token.destroy');
         Route::get('user', CurrentUserController::class)->name('user');
         Route::get('users', [UserController::class, 'index'])->name('users.index');
+
+        // PDF/Excel exports (same controller as the web routes). Before the {model} routes.
+        Route::get('reports/{report}/export', [ExportController::class, 'report'])->name('reports.export');
+        Route::get('loans/export', [ExportController::class, 'loans'])->name('loans.export');
+        Route::get('payments/export', [ExportController::class, 'payments'])->name('payments.export');
+        Route::get('customers/export', [ExportController::class, 'customers'])->name('customers.export');
 
         // Customers (docs/04-api.md). DELETE archives; customers are never hard-deleted.
         Route::apiResource('customers', CustomerController::class);
@@ -60,5 +68,16 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         Route::get('dashboard/overdue-accounts', [DashboardController::class, 'overdueAccounts'])->name('dashboard.overdue-accounts');
         Route::get('interest-periods', [InterestPeriodController::class, 'index'])->name('interest-periods.index');
         Route::get('loans/{loan}/interest-periods', [InterestPeriodController::class, 'forLoan'])->name('loans.interest-periods');
+
+        // Reports (docs/10; reports.view). Rows are paginated; totals cover the whole filtered set.
+        Route::prefix('reports')->name('reports.')->group(function () {
+            Route::get('collections', [ReportController::class, 'collections'])->name('collections');
+            Route::get('due', [ReportController::class, 'due'])->name('due');
+            Route::get('customer-ledger', [ReportController::class, 'customerLedger'])->name('customer-ledger');
+            Route::get('loan-outstanding', [ReportController::class, 'loanOutstanding'])->name('loan-outstanding');
+            Route::get('collateral', [ReportController::class, 'collateral'])->name('collateral');
+        });
+        Route::get('customers/{customer}/ledger', [ReportController::class, 'customerLedger'])->name('customers.ledger');
+        Route::get('loans/{loan}/ledger', [ReportController::class, 'loanLedger'])->name('loans.ledger');
     });
 });
