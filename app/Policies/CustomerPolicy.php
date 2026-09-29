@@ -36,4 +36,9 @@ class CustomerPolicy
     {
         return $user->can(Permission::CustomersArchive->value);
     }
+
+    public function restore(User $user, Customer $customer): bool
+    {
+        return $user->can(Permission::CustomersArchive->value);
+    }
 }

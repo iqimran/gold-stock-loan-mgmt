@@ -66,6 +66,7 @@ class LoanPermissionsTest extends TestCase
             'customer create' => [Customer::class, 'create', Permission::CustomersCreate, false],
             'customer update' => [Customer::class, 'update', Permission::CustomersUpdate, true],
             'customer archive' => [Customer::class, 'archive', Permission::CustomersArchive, true],
+            'customer restore' => [Customer::class, 'restore', Permission::CustomersArchive, true],
             'loan viewAny' => [Loan::class, 'viewAny', Permission::LoansView, false],
             'loan view' => [Loan::class, 'view', Permission::LoansView, true],
             'loan create' => [Loan::class, 'create', Permission::LoansCreate, false],
