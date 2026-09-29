@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\V1\CurrentUserController;
 use App\Http\Controllers\Api\V1\CustomerController;
 use App\Http\Controllers\Api\V1\TokenController;
 use App\Http\Controllers\Api\V1\UserController;
+use App\Http\Controllers\Customers\CustomerImageController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->name('api.v1.')->group(function () {
@@ -19,6 +20,6 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         // Customers (docs/04-api.md). DELETE archives; customers are never hard-deleted.
         Route::apiResource('customers', CustomerController::class);
         Route::post('customers/{customer}/restore', [CustomerController::class, 'restore'])->name('customers.restore');
-        Route::get('customers/{customer}/image', [CustomerController::class, 'image'])->name('customers.image');
+        Route::get('customers/{customer}/image', CustomerImageController::class)->name('customers.image');
     });
 });

@@ -15,8 +15,6 @@ use App\Models\Customer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Storage;
-use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class CustomerController extends Controller
 {
@@ -70,22 +68,6 @@ class CustomerController extends Controller
         $changeStatus->handle($customer, CustomerStatus::Active);
 
         return new CustomerResource($this->withSummary($customer, $summary));
-    }
-
-    /**
-     * The customer photo, from the private disk (never publicly linked).
-     */
-    public function image(Customer $customer): StreamedResponse
-    {
-        Gate::authorize('view', $customer);
-
-        $disk = Storage::disk(Customer::IMAGE_DISK);
-        abort_unless($customer->image_path && $disk->exists($customer->image_path), 404);
-
-        return $disk->response($customer->image_path, null, [
-            'Cache-Control' => 'private, max-age=3600',
-            'X-Content-Type-Options' => 'nosniff',
-        ]);
     }
 
     private function withSummary(Customer $customer, CustomerSummary $summary): Customer

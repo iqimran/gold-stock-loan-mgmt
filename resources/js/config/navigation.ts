@@ -1,5 +1,5 @@
 import { type NavGroup } from '@/types';
-import { LayoutGrid, ShieldCheck, Users } from 'lucide-react';
+import { Contact, LayoutGrid, ShieldCheck, Users } from 'lucide-react';
 
 /**
  * Application navigation. Items are hidden when the user lacks `permission`.
@@ -9,6 +9,10 @@ export const navigation: NavGroup[] = [
     {
         title: 'Overview',
         items: [{ title: 'Dashboard', url: '/dashboard', icon: LayoutGrid }],
+    },
+    {
+        title: 'Lending',
+        items: [{ title: 'Customers', url: '/customers', icon: Contact, permission: 'customers.view' }],
     },
     {
         title: 'Administration',

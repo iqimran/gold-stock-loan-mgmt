@@ -26,7 +26,8 @@ class CustomerResource extends JsonResource
             'nid' => $this->nid,
             'address' => $this->address,
             'status' => $this->status->value,
-            'image_url' => $this->image_path ? route('api.v1.customers.image', $this->resource) : null,
+            // API clients get the token-authenticated URL; the web screens get the session-authenticated one.
+            'image_url' => $this->image_path ? route($request->is('api/*') ? 'api.v1.customers.image' : 'customers.image', $this->resource) : null,
             'summary' => $this->when($this->resource->hasAttribute('total_interest_due'), fn () => [
                 'active_loans' => $this->active_loans_count,
                 'total_interest_due' => $this->total_interest_due,

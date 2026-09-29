@@ -2,6 +2,8 @@
 
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\Customers\CustomerController;
+use App\Http\Controllers\Customers\CustomerImageController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -11,6 +13,11 @@ Route::middleware(['auth'])->group(function () {
     Route::get('dashboard', function () {
         return Inertia::render('dashboard');
     })->name('dashboard');
+
+    // Customers: DELETE archives; customers are never hard-deleted.
+    Route::resource('customers', CustomerController::class);
+    Route::post('customers/{customer}/restore', [CustomerController::class, 'restore'])->name('customers.restore');
+    Route::get('customers/{customer}/image', CustomerImageController::class)->name('customers.image');
 
     Route::prefix('admin')->name('admin.')->group(function () {
         Route::resource('users', UserController::class)->except(['show', 'destroy']);
