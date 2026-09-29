@@ -43,4 +43,16 @@ return [
         'max_karat' => '24',
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Payments
+    |--------------------------------------------------------------------------
+    |
+    | Accepted payment methods ("payment method should be configurable", docs/01) until the
+    | Settings module manages them.
+    |
+    */
+
+    'payment_methods' => ['cash', 'bank', 'mobile_banking', 'card', 'other'],
+
 ];

@@ -19,4 +19,7 @@ enum LoanEventType: string
     case CollateralAdded = 'collateral_added';
     case CollateralUpdated = 'collateral_updated';
     case CollateralReleased = 'collateral_released';
+
+    // Payments (payload carries the receipt number and the allocation).
+    case PaymentPosted = 'payment_posted';
 }

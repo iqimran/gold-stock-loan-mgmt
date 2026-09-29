@@ -6,6 +6,7 @@ use App\Enums\SystemRole;
 use App\Models\CollateralItem;
 use App\Models\Customer;
 use App\Models\Loan;
+use App\Models\Payment;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -64,6 +65,7 @@ class RouteAuthorizationTest extends TestCase
             'customer' => Customer::factory()->create()->customer_no,
             'loan' => Loan::factory()->create()->loan_no,
             'collateralItem' => CollateralItem::factory()->create()->collateral_no,
+            'payment' => Payment::factory()->create()->receipt_no,
             'user' => User::factory()->create()->id,
             'role' => Role::findByName(SystemRole::GeneralUser->value)->id,
         ];

@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\V1\CollateralController;
 use App\Http\Controllers\Api\V1\CurrentUserController;
 use App\Http\Controllers\Api\V1\CustomerController;
 use App\Http\Controllers\Api\V1\LoanController;
+use App\Http\Controllers\Api\V1\PaymentController;
 use App\Http\Controllers\Api\V1\TokenController;
 use App\Http\Controllers\Api\V1\UserController;
 use App\Http\Controllers\Customers\CustomerImageController;
@@ -38,5 +39,12 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         Route::get('collateral/{collateralItem}', [CollateralController::class, 'show'])->name('collateral.show');
         Route::match(['put', 'patch'], 'collateral/{collateralItem}', [CollateralController::class, 'update'])->name('collateral.update');
         Route::post('collateral/{collateralItem}/release', [CollateralController::class, 'release'])->name('collateral.release');
+
+        // Payments (docs/04-api.md). No update/delete: a posted payment is only ever reversed.
+        Route::get('payments', [PaymentController::class, 'index'])->name('payments.index');
+        Route::post('payments', [PaymentController::class, 'store'])->name('payments.store');
+        Route::get('payments/{payment}', [PaymentController::class, 'show'])->name('payments.show');
+        Route::get('loans/{loan}/payments', [PaymentController::class, 'forLoan'])->name('loans.payments');
+        Route::get('customers/{customer}/payments', [PaymentController::class, 'forCustomer'])->name('customers.payments');
     });
 });

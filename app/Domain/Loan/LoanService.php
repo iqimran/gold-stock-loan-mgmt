@@ -3,6 +3,7 @@
 namespace App\Domain\Loan;
 
 use App\Domain\Interest\InterestScheduleService;
+use App\Domain\Ledger\CustomerLedgerService;
 use App\Enums\InterestPeriodStatus;
 use App\Enums\LoanEventType;
 use App\Enums\LoanStatus;
@@ -34,6 +35,7 @@ class LoanService
         private readonly LoanSettlement $settlement,
         private readonly InterestScheduleService $schedule,
         private readonly LoanHistory $history,
+        private readonly CustomerLedgerService $ledger,
     ) {}
 
     /**
@@ -133,6 +135,8 @@ class LoanService
                 return ['principal' => $locked->principal];
             });
 
+            // Ledger: the principal handed over, then (via the schedule) interest already due on a backdated loan.
+            $this->ledger->disburse($loan, $actor);
             $this->schedule->sync($loan);
 
             return $this->syncOverdueStatus($loan);
@@ -162,14 +166,23 @@ class LoanService
      */
     public function close(Loan $loan, ?User $actor, ?string $note = null): Loan
     {
-        return $this->transition($loan, LoanStatus::Closed, LoanEventType::Closed, $actor, function (Loan $locked) use ($note): array {
-            if ($blockers = $this->settlement->closeBlockers($locked)) {
-                throw ValidationException::withMessages(['status' => $blockers]);
-            }
+        return DB::transaction(function () use ($loan, $actor, $note): Loan {
+            $this->transition($loan, LoanStatus::Closed, LoanEventType::Closed, $actor, function (Loan $locked) use ($note): array {
+                if ($blockers = $this->settlement->closeBlockers($locked)) {
+                    throw ValidationException::withMessages(['status' => $blockers]);
+                }
 
-            $locked->closed_at = now();
+                $locked->closed_at = now();
 
-            return ['note' => $note];
+                return ['note' => $note];
+            });
+
+            // The statement of a closed loan balances: interest due to date, plus interest already
+            // collected for a final period that is not yet due, is charged.
+            $this->ledger->chargeDueInterest($loan, today());
+            $this->ledger->chargeCollectedInterest($loan, today());
+
+            return $loan;
         });
     }
 
@@ -178,14 +191,21 @@ class LoanService
      */
     public function cancel(Loan $loan, ?User $actor, string $reason): Loan
     {
-        return $this->transition($loan, LoanStatus::Cancelled, LoanEventType::Cancelled, $actor, function (Loan $locked) use ($reason): array {
-            if ($locked->status->isOpen() && $this->settlement->hasPostedPayments($locked)) {
-                throw ValidationException::withMessages([
-                    'status' => 'Payments have been posted on this loan; settle and close it instead of cancelling.',
-                ]);
-            }
+        return DB::transaction(function () use ($loan, $actor, $reason): Loan {
+            $this->transition($loan, LoanStatus::Cancelled, LoanEventType::Cancelled, $actor, function (Loan $locked) use ($reason): array {
+                if ($locked->status->isOpen() && $this->settlement->hasPostedPayments($locked)) {
+                    throw ValidationException::withMessages([
+                        'status' => 'Payments have been posted on this loan; settle and close it instead of cancelling.',
+                    ]);
+                }
 
-            return ['reason' => $reason];
+                return ['reason' => $reason];
+            });
+
+            // An activated loan's ledger is cleared by one compensating credit (a draft has no entries).
+            $this->ledger->clearCancelledLoan($loan, $actor, today());
+
+            return $loan;
         });
     }
 

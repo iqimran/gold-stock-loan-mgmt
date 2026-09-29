@@ -2,6 +2,7 @@
 
 namespace App\Domain\Interest;
 
+use App\Domain\Ledger\CustomerLedgerService;
 use App\Enums\InterestBase;
 use App\Enums\InterestPeriodStatus;
 use App\Models\Loan;
@@ -22,11 +23,13 @@ class InterestScheduleService
     public function __construct(
         private readonly InterestCalculationService $calculator,
         private readonly InterestSettings $settings,
+        private readonly CustomerLedgerService $ledger,
     ) {}
 
     /**
      * Brings one loan's periods up to date for $today (business date, application time zone):
-     * creates missing periods, refreshes statuses and the loan's next due date.
+     * creates missing periods, refreshes statuses and the loan's next due date, and charges the
+     * interest of periods that have fallen due to the customer ledger (each period once).
      * Only open (active/overdue) loans have a running schedule.
      */
     public function sync(Loan $loan, ?CarbonInterface $today = null): InterestSyncResult
@@ -45,6 +48,7 @@ class InterestScheduleService
             $created = $this->createMissingPeriods($locked, $calendar, $today);
             $updated = $this->refreshStatuses($locked, $today);
             $this->updateNextDueDate($locked, $calendar, $today);
+            $this->ledger->chargeDueInterest($locked, $today);
 
             return new InterestSyncResult($created, $updated);
         });
