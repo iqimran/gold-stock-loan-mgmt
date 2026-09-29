@@ -6,17 +6,25 @@ use App\Actions\Customers\ChangeCustomerStatus;
 use App\Actions\Customers\SaveCustomer;
 use App\Domain\Customer\CustomerSearch;
 use App\Domain\Customer\CustomerSummary;
+use App\Domain\Payment\PaymentSearch;
+use App\Domain\Reporting\CustomerInterestReport;
+use App\Domain\Reporting\CustomerLedgerReport;
 use App\Enums\CustomerStatus;
 use App\Enums\LoanStatus;
+use App\Enums\Permission;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Customers\CustomerRequest;
 use App\Http\Requests\Customers\CustomerSearchRequest;
 use App\Http\Resources\CustomerResource;
+use App\Http\Resources\PaymentResource;
 use App\Models\Customer;
 use App\Models\Loan;
+use App\Models\Payment;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -56,16 +64,65 @@ class CustomerController extends Controller
         return to_route('customers.show', $customer)->with('success', "Customer {$customer->customer_no} created.");
     }
 
-    public function show(Request $request, Customer $customer, CustomerSummary $summary): Response
+    /**
+     * The customer's profile, open loans, and full history: every payment (reversed ones included) and
+     * the ledger statement (opening balance brought forward, running balance, closing balance carried
+     * forward), and the month-by-month interest statement. The history filters (from / to / loan) apply to both and to their exports; each part is
+     * shown only with its own permission (payments.view, reports.view).
+     */
+    public function show(Request $request, Customer $customer, CustomerSummary $summary, PaymentSearch $payments, CustomerLedgerReport $ledger, CustomerInterestReport $interest): Response
     {
         Gate::authorize('view', $customer);
 
-        $canViewLoans = $request->user()->can('viewAny', Loan::class);
+        $user = $request->user();
+        $canViewLoans = $user->can('viewAny', Loan::class);
+        $canViewPayments = $user->can('viewAny', Payment::class);
+        $canViewLedger = $user->can(Permission::ReportsView->value);
+
+        $history = $request->validate([
+            'from' => ['nullable', 'date_format:Y-m-d'],
+            'to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:from'],
+            'loan' => ['nullable', 'string', 'max:30', Rule::exists('loans', 'loan_no')->where('customer_id', $customer->id)],
+        ]);
+        $history = ['from' => $history['from'] ?? null, 'to' => $history['to'] ?? null, 'loan' => $history['loan'] ?? null];
+        $loanId = $history['loan'] ? $customer->loans()->where('loan_no', $history['loan'])->value('id') : null;
 
         return Inertia::render('customers/show', [
             'customer' => (new CustomerResource($summary->apply(Customer::query()->whereKey($customer->getKey()))->firstOrFail()))->resolve($request),
             // Loan details only for users who may see loans; the summary counts are always shown.
             'activeLoans' => $canViewLoans ? $this->activeLoans($customer) : null,
+            'history' => array_map(fn ($value) => $value ?? '', $history),
+            // Every loan of the customer (any status) for the history filter; the first start year for the year picker.
+            'historyLoans' => $canViewPayments || $canViewLedger ? $customer->loans()->orderBy('start_date')->pluck('loan_no')->all() : [],
+            'firstYear' => (int) substr((string) ($customer->loans()->min('start_date') ?? today()->toDateString()), 0, 4),
+            'payments' => $canViewPayments
+                ? fn () => PaymentResource::collection(
+                    $payments->query(['customer' => $customer->customer_no, 'loan' => $history['loan'], 'paid_from' => $history['from'], 'paid_to' => $history['to']])
+                        ->paginate(20, ['*'], 'payments_page')
+                        ->withQueryString(),
+                )
+                : null,
+            'ledger' => $canViewLedger
+                ? function () use ($ledger, $customer, $history, $loanId) {
+                    $filters = ['loan_id' => $loanId, 'from' => $history['from'], 'to' => $history['to']];
+
+                    return [
+                        'entries' => JsonResource::collection($ledger->paginate($customer, $filters, 25, 'ledger_page')),
+                        'totals' => $ledger->totals($customer, $filters),
+                    ];
+                }
+                : null,
+            // Month-by-month interest (charged / paid / unpaid); the due-date range uses the same from / to.
+            'interest' => $canViewLedger
+                ? function () use ($interest, $customer, $history, $loanId) {
+                    $filters = ['loan_id' => $loanId, 'from' => $history['from'], 'to' => $history['to']];
+
+                    return [
+                        'months' => JsonResource::collection($interest->paginate($customer, $filters, 24, 'interest_page')),
+                        'totals' => $interest->totals($customer, $filters),
+                    ];
+                }
+                : null,
         ]);
     }
 

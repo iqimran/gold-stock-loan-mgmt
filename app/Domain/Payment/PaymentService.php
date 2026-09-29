@@ -2,6 +2,7 @@
 
 namespace App\Domain\Payment;
 
+use App\Domain\Audit\AuditTrail;
 use App\Domain\Interest\InterestScheduleService;
 use App\Domain\Ledger\CustomerLedgerService;
 use App\Domain\Loan\LoanHistory;
@@ -48,6 +49,7 @@ class PaymentService
         private readonly LoanHistory $history,
         private readonly DocumentNumberGenerator $numbers,
         private readonly LoanSettings $settings,
+        private readonly AuditTrail $audit,
     ) {}
 
     /**
@@ -142,6 +144,20 @@ class PaymentService
         // Statuses, next due date, interest now due, and the loan's overdue status reflect the payment.
         $this->schedule->sync($locked, $today);
         $this->loans->syncOverdueStatus($locked);
+
+        $this->audit->record('payment.created', $payment, [], [
+            'receipt_no' => $payment->receipt_no,
+            'loan_no' => $locked->loan_no,
+            'type' => $type->value,
+            'amount' => $payment->amount,
+            'method' => $payment->method,
+            'payment_date' => $payment->payment_date->toDateString(),
+            'reference' => $payment->reference,
+            'interest' => $allocation->interest(),
+            'principal' => $allocation->principal,
+            'fee' => $allocation->fee,
+            'outstanding_principal_after' => $locked->fresh()->outstanding_principal,
+        ], "Payment {$payment->receipt_no} of {$payment->amount} on loan {$locked->loan_no}", $actor->id);
 
         $this->history->record($locked, LoanEventType::PaymentPosted, $actor, [
             'receipt_no' => $payment->receipt_no,

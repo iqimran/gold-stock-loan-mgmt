@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Settings;
 
 use App\Domain\Settings\LoanSettings;
-use App\Enums\InterestBase;
 use App\Enums\InterestDueTiming;
 use App\Enums\InterestRateType;
 use App\Enums\Permission;
@@ -28,7 +27,7 @@ class LoanSettingsController extends Controller
             'settings' => $settings->all(),
             'effects' => LoanSettings::EFFECTS,
             'options' => [
-                'interest_base' => array_column(InterestBase::cases(), 'value'),
+                'interest_base' => LoanSettings::INTEREST_BASES,
                 'interest_due' => array_column(InterestDueTiming::cases(), 'value'),
                 'yearly_conversion' => array_column(YearlyRateConversion::cases(), 'value'),
                 'rate_types' => InterestRateType::values(),

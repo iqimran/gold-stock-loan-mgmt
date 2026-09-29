@@ -94,7 +94,7 @@ class LoanSettingsTest extends TestCase
                 ->where('settings', fn ($settings) => $settings['numbering.loan_prefix'] === 'LN' && $settings['collection.grace_days'] === 0)
                 ->where('effects.interest', LoanSettings::EFFECTS['interest'])
                 ->where('effects.collection', LoanSettings::EFFECTS['collection'])
-                ->where('options.interest_base', ['outstanding', 'principal']));
+                ->where('options.interest_base', ['outstanding']));
     }
 
     public function test_settings_need_the_settings_manage_permission(): void
@@ -145,7 +145,7 @@ class LoanSettingsTest extends TestCase
             'currency' => ['code' => 'TAKA'],
             'numbering' => ['loan_prefix' => 'ln-1', 'digits' => 9, 'receipt_prefix' => 'CUS'],
             'collection' => ['grace_days' => 91, 'alert_threshold' => 0],
-            'interest' => ['base' => 'compound'],
+            'interest' => ['base' => 'principal'],
             'lists' => ['payment_methods' => [], 'collateral_types' => ['Gold Bar'], 'karat_options' => ['22', '26']],
         ])->assertSessionHasErrors([
             'currency.code', 'numbering.loan_prefix', 'numbering.digits', 'numbering.receipt_prefix', 'numbering.customer_prefix',

@@ -130,7 +130,7 @@ class ExportTest extends TestCase
         $this->assertSame('Closed', $sheet->getCell('H5')->getValue());
         $this->assertSame('Totals (1 loans)', $sheet->getCell('A6')->getValue());
         $this->assertEqualsWithDelta(3000.0, $sheet->getCell('D6')->getValue(), 0.0001);
-        $this->assertSame('0.0000', $sheet->getStyle('F5')->getNumberFormat()->getFormatCode());
+        $this->assertSame('General', $sheet->getStyle('F5')->getNumberFormat()->getFormatCode());
     }
 
     // ── PDF ─────────────────────────────────────────────────────────────────────────────────

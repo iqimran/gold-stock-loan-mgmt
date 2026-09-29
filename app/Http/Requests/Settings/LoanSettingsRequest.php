@@ -3,7 +3,6 @@
 namespace App\Http\Requests\Settings;
 
 use App\Domain\Settings\LoanSettings;
-use App\Enums\InterestBase;
 use App\Enums\InterestDueTiming;
 use App\Enums\InterestRateType;
 use App\Enums\Permission;
@@ -43,7 +42,9 @@ class LoanSettingsRequest extends FormRequest
             'currency.code' => ['required', 'string', 'regex:/^[A-Z]{3}$/'],
             'currency.symbol' => ['required', 'string', 'max:5'],
 
-            'interest.base' => ['required', Rule::enum(InterestBase::class)],
+            // Business rule: a principal payment reduces the balance interest is charged on (reducing
+            // balance), so the flat base is not offered.
+            'interest.base' => ['required', Rule::in(LoanSettings::INTEREST_BASES)],
             'interest.due' => ['required', Rule::enum(InterestDueTiming::class)],
             'interest.yearly_conversion' => ['required', Rule::enum(YearlyRateConversion::class)],
 

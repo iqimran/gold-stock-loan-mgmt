@@ -14,7 +14,7 @@ final readonly class ExportColumn
 
     public const WEIGHT = 'weight';   // grams, 3 decimals
 
-    public const RATE = 'rate';       // percentage, 4 decimals
+    public const RATE = 'rate';       // percentage, trailing zeros dropped
 
     public const KARAT = 'karat';     // 2 decimals
 
@@ -61,6 +61,12 @@ final readonly class ExportColumn
         [$whole, $fraction] = array_pad(explode('.', ltrim($value, '-')), 2, '');
         $grouped = preg_replace('/\B(?=(\d{3})+(?!\d))/', ',', $whole);
         $decimals = $this->decimals();
+
+        if ($this->type === self::RATE) {
+            $fraction = rtrim($fraction, '0');
+
+            return ($negative ? '-' : '').$grouped.($fraction !== '' ? '.'.$fraction : '');
+        }
 
         return ($negative ? '-' : '').$grouped.($decimals > 0 ? '.'.str_pad(substr($fraction, 0, $decimals), $decimals, '0') : '');
     }

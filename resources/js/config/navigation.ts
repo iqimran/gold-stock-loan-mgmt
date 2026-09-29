@@ -1,5 +1,5 @@
 import { type NavGroup } from '@/types';
-import { Contact, HandCoins, LayoutGrid, ReceiptText, ShieldCheck, Users } from 'lucide-react';
+import { Contact, HandCoins, History, LayoutGrid, ReceiptText, ShieldCheck, Users } from 'lucide-react';
 
 /**
  * Application navigation. Items are hidden when the user lacks `permission`.
@@ -23,6 +23,7 @@ export const navigation: NavGroup[] = [
         items: [
             { title: 'Users', url: '/admin/users', icon: Users, permission: 'users.view' },
             { title: 'Roles & Permissions', url: '/admin/roles', icon: ShieldCheck, permission: 'roles.view' },
+            { title: 'Audit log', url: '/admin/audit-logs', icon: History, permission: 'audit.view' },
         ],
     },
 ];

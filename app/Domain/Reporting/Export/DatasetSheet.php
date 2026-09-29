@@ -127,7 +127,7 @@ class DatasetSheet implements FromArray, ShouldAutoSize, WithEvents, WithTitle
         return match ($column->type) {
             ExportColumn::MONEY, ExportColumn::KARAT => '#,##0.00',
             ExportColumn::WEIGHT => '#,##0.000',
-            ExportColumn::RATE => '0.0000',
+            ExportColumn::RATE => NumberFormat::FORMAT_GENERAL,
             ExportColumn::INTEGER => '0',
             ExportColumn::DATE => NumberFormat::FORMAT_DATE_YYYYMMDD,
             default => null,

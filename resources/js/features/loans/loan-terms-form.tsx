@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { type Loan } from '@/features/loans/types';
+import { formatRate } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { Link, useForm } from '@inertiajs/react';
 import { LoaderCircle, Lock } from 'lucide-react';
@@ -49,7 +50,7 @@ export function LoanTermsForm({ loan, customerNo, rateTypes, periodUnits, today,
     const { data, setData, post, patch, processing, errors, transform } = useForm<LoanTermsData>({
         ...(loan ? {} : { customer: customerNo ?? '' }),
         principal: loan?.principal ?? '',
-        interest_rate: loan?.interest_rate ?? defaults?.interest_rate ?? '',
+        interest_rate: formatRate(loan?.interest_rate ?? defaults?.interest_rate),
         interest_rate_type: loan?.interest_rate_type ?? defaults?.interest_rate_type ?? rateTypes[0] ?? 'monthly',
         interest_period_unit: loan?.interest_period_unit ?? periodUnits[0] ?? 'month',
         start_date: loan?.start_date ?? today,

@@ -11,7 +11,7 @@ import { type Loan } from '@/features/loans/types';
 import { useCan } from '@/hooks/use-can';
 import { useVisitState } from '@/hooks/use-visit-state';
 import AppLayout from '@/layouts/app-layout';
-import { formatDate, formatMoney } from '@/lib/format';
+import { formatDate, formatMoney, formatRate } from '@/lib/format';
 import { type BreadcrumbItem, type Paginated } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Plus, ReceiptText } from 'lucide-react';
@@ -89,7 +89,7 @@ export default function LoansIndex({ loans, filters }: { loans: Paginated<Loan>;
         {
             key: 'rate',
             header: 'Rate',
-            cell: (loan) => `${loan.interest_rate}% ${RATE_TYPE[loan.interest_rate_type]}`,
+            cell: (loan) => `${formatRate(loan.interest_rate)}% ${RATE_TYPE[loan.interest_rate_type]}`,
             className: 'hidden lg:table-cell whitespace-nowrap',
         },
         { key: 'status', header: 'Status', cell: (loan) => <LoanStatusBadge status={loan.status} /> },

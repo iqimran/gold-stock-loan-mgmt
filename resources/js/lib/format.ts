@@ -31,3 +31,15 @@ export function formatDate(value: string | null | undefined): string {
 export function formatDateTime(value: string | null | undefined): string {
     return value ? new Date(value).toLocaleString() : '—';
 }
+
+/**
+ * Formats a decimal rate string without trailing zeros ("2.0000" → "2", "2.5800" → "2.58").
+ * Works on the string so no precision is lost.
+ */
+export function formatRate(value: string | null | undefined): string {
+    if (value === null || value === undefined || value === '') {
+        return '';
+    }
+
+    return value.includes('.') ? value.replace(/\.?0+$/, '') : value;
+}

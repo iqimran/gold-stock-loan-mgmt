@@ -43,6 +43,7 @@ class ExportController extends Controller
             'collections' => $this->datasets->collections(ReportFilters::validate($report, $request)),
             'due' => $this->datasets->due(ReportFilters::validate($report, $request)),
             'customer-ledger' => $this->datasets->customerLedger(ReportFilters::ledger($request)),
+            'customer-interest' => $this->datasets->customerInterest(ReportFilters::ledger($request)),
             'loan-outstanding' => $this->datasets->loanOutstanding(ReportFilters::validate($report, $request)),
             'collateral' => $this->datasets->collateral(ReportFilters::validate($report, $request)),
         };

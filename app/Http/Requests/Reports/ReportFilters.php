@@ -23,7 +23,7 @@ use Illuminate\Validation\Rule;
  */
 final class ReportFilters
 {
-    public const REPORTS = ['collections', 'due', 'customer-ledger', 'loan-outstanding', 'collateral'];
+    public const REPORTS = ['collections', 'due', 'customer-ledger', 'customer-interest', 'loan-outstanding', 'collateral'];
 
     /**
      * @return array<string, mixed>

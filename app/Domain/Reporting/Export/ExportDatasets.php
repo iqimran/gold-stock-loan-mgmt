@@ -8,6 +8,7 @@ use App\Domain\Loan\LoanSearch;
 use App\Domain\Payment\PaymentSearch;
 use App\Domain\Reporting\CollateralReport;
 use App\Domain\Reporting\CollectionReport;
+use App\Domain\Reporting\CustomerInterestReport;
 use App\Domain\Reporting\CustomerLedgerReport;
 use App\Domain\Reporting\DueReport;
 use App\Domain\Reporting\LoanOutstandingReport;
@@ -42,6 +43,7 @@ class ExportDatasets
         private readonly LoanSearch $loans,
         private readonly PaymentSearch $payments,
         private readonly CustomerSearch $customers,
+        private readonly CustomerInterestReport $interest,
     ) {}
 
     /**
@@ -171,6 +173,51 @@ class ExportDatasets
                 ['label' => 'Closing balance', 'values' => ['balance' => $totals['closing_balance']]],
             ],
             'portrait',
+        );
+    }
+
+    /**
+     * Month-by-month interest statement of a customer (charged, paid with dates and receipts, waived,
+     * unpaid, status). $ledger is ReportFilters::ledger(): customer, optional loan, due-date range.
+     *
+     * @param  array{customer: Customer, loan: ?Loan, loan_id: ?int, from: ?string, to: ?string}  $ledger
+     */
+    public function customerInterest(array $ledger): ExportDataset
+    {
+        $customer = $ledger['customer'];
+        $filters = ['loan_id' => $ledger['loan_id'], 'from' => $ledger['from'], 'to' => $ledger['to']];
+        $this->guardCount($this->interest->count($customer, $filters));
+        $totals = $this->interest->totals($customer, $filters);
+
+        return new ExportDataset(
+            "Interest Statement - {$customer->name}",
+            array_filter([
+                'Customer' => "{$customer->name} ({$customer->customer_no}) · {$customer->mobile}",
+                'Loan' => $ledger['loan']?->loan_no ?? 'All loans',
+                'Due from' => $ledger['from'],
+                'Due to' => $ledger['to'],
+            ]),
+            [
+                new ExportColumn('loan_no', 'Loan'),
+                new ExportColumn('month', 'Month'),
+                new ExportColumn('due_date', 'Due date', self::C::DATE),
+                new ExportColumn('principal', 'Principal', self::C::MONEY),
+                new ExportColumn('rate', 'Rate'),
+                new ExportColumn('expected_interest', 'Interest', self::C::MONEY),
+                new ExportColumn('paid_interest', 'Paid', self::C::MONEY),
+                new ExportColumn('paid_on', 'Paid on'),
+                new ExportColumn('receipts', 'Receipts'),
+                new ExportColumn('waived_interest', 'Waived', self::C::MONEY),
+                new ExportColumn('unpaid_interest', 'Unpaid', self::C::MONEY),
+                new ExportColumn('status', 'Status'),
+            ],
+            array_map(fn (array $row) => [...$row, 'status' => $this->label($row['status'])], $this->interest->rows($customer, $filters)),
+            [
+                ['label' => "Totals ({$totals['months']} months)", 'values' => [
+                    'expected_interest' => $totals['charged'], 'paid_interest' => $totals['paid'], 'waived_interest' => $totals['waived'], 'unpaid_interest' => $totals['unpaid'],
+                ]],
+            ],
+            'landscape',
         );
     }
 

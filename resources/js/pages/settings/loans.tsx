@@ -16,7 +16,7 @@ const breadcrumbs: BreadcrumbItem[] = [{ title: 'Loan settings', href: '/setting
 const selectClass = 'border-input bg-background h-9 w-full rounded-md border px-3 text-sm';
 
 const LABELS: Record<string, string> = {
-    outstanding: 'Outstanding principal (reducing)',
+    outstanding: 'Principal amount (reduced only by principal payments)',
     principal: 'Original principal (flat)',
     period_end: 'At the end of each period',
     period_start: 'At the start of each period',

@@ -2,6 +2,7 @@
 
 namespace App\Domain\Loan;
 
+use App\Domain\Audit\AuditTrail;
 use App\Domain\Interest\InterestScheduleService;
 use App\Domain\Ledger\CustomerLedgerService;
 use App\Domain\Settings\LoanSettings;
@@ -36,6 +37,7 @@ class LoanService
         private readonly LoanHistory $history,
         private readonly CustomerLedgerService $ledger,
         private readonly LoanSettings $settings,
+        private readonly AuditTrail $audit,
     ) {}
 
     /**
@@ -65,6 +67,13 @@ class LoanService
             ]);
 
             $this->record($loan, LoanEventType::Created, $actor, ['terms' => $this->terms($loan)]);
+            $this->audit->record('loan.created', $loan, [], [
+                'loan_no' => $loan->loan_no,
+                'customer_no' => $customer->customer_no,
+                'status' => LoanStatus::Draft->value,
+                ...$this->terms($loan),
+                ...$loan->only(['interest_base', 'interest_due_timing', 'yearly_rate_conversion']),
+            ], "Loan {$loan->loan_no} created for {$customer->customer_no}", $actor?->id);
 
             return $loan;
         });
@@ -114,6 +123,8 @@ class LoanService
                     'before' => array_intersect_key($before, array_flip($changed)),
                     'after' => array_intersect_key($after, array_flip($changed)),
                 ]);
+                $this->audit->record('loan.updated', $locked, array_intersect_key($before, array_flip($changed)),
+                    array_intersect_key($after, array_flip($changed)), "Loan {$locked->loan_no} updated", $actor?->id);
             }
 
             return $loan->setRawAttributes($locked->getAttributes(), true);
@@ -249,7 +260,14 @@ class LoanService
             $locked->status = $to;
             $locked->save();
 
-            $this->record($locked, $event, $actor, ['from' => $from->value, 'to' => $to->value, ...array_filter($payload, fn ($value) => $value !== null)]);
+            $payload = array_filter($payload, fn ($value) => $value !== null);
+            $this->record($locked, $event, $actor, ['from' => $from->value, 'to' => $to->value, ...$payload]);
+
+            // Automatic overdue / back-to-active changes are system actions (no actor).
+            $system = in_array($event, [LoanEventType::MarkedOverdue, LoanEventType::OverdueCleared], true);
+            $why = $payload['reason'] ?? $payload['note'] ?? null;
+            $this->audit->record('loan.status_changed', $locked, ['status' => $from->value], ['status' => $to->value, 'action' => $event->value, ...$payload],
+                "Loan {$locked->loan_no} {$from->value} → {$to->value} ({$event->value})".($why ? ": {$why}" : ''), $actor?->id, $system);
 
             return $loan->setRawAttributes($locked->getAttributes(), true);
         });

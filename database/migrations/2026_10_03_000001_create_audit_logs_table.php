@@ -9,10 +9,9 @@ return new class extends Migration
     public function up(): void
     {
         /*
-         * Append-only trail of sensitive changes that are not otherwise recorded in an immutable
-         * ledger (ported from the Inventory POS): settings now; users/roles/permissions and sign-ins
-         * with the audit-log task. Loan, collateral and payment changes keep their own history
-         * (loan_events, ledger_entries, payments).
+         * Append-only audit trail of financial and sensitive changes (ported from the Inventory POS):
+         * loans, payments, reversals, collateral, customers and settings — see App\Domain\Audit\AuditTrail
+         * for the events. Loans additionally keep their own per-loan history (loan_events).
          */
         Schema::create('audit_logs', function (Blueprint $table) {
             $table->id();

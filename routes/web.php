@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\AuditLogController;
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Customers\CustomerController;
@@ -57,6 +58,8 @@ Route::middleware(['auth'])->group(function () {
         Route::patch('users/{user}/status', [UserController::class, 'updateStatus'])->name('users.status');
 
         Route::resource('roles', RoleController::class)->except(['show']);
+
+        Route::get('audit-logs', [AuditLogController::class, 'index'])->name('audit-logs.index');
     });
 });
 

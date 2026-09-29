@@ -22,7 +22,7 @@ class CustomerLedgerReport
     /**
      * @param  array{loan_id?: ?int, from?: ?string, to?: ?string}  $filters
      */
-    public function paginate(Customer $customer, array $filters, int $perPage = 50): LengthAwarePaginator
+    public function paginate(Customer $customer, array $filters, int $perPage = 50, string $pageName = 'page'): LengthAwarePaginator
     {
         $opening = $this->opening($customer, $filters);
 
@@ -30,7 +30,7 @@ class CustomerLedgerReport
             ->fromSub($this->entries($customer, $filters), 't')
             ->orderBy('t.entry_date')
             ->orderBy('t.id')
-            ->paginate($perPage)
+            ->paginate($perPage, ['*'], $pageName)
             ->withQueryString();
 
         return $rows->through(fn (object $row) => $this->row($row, $opening));

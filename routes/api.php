@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\V1\AlertController;
+use App\Http\Controllers\Api\V1\AuditLogController;
 use App\Http\Controllers\Api\V1\CollateralController;
 use App\Http\Controllers\Api\V1\CurrentUserController;
 use App\Http\Controllers\Api\V1\CustomerController;
@@ -24,6 +25,7 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         Route::delete('auth/token', [TokenController::class, 'destroy'])->name('auth.token.destroy');
         Route::get('user', CurrentUserController::class)->name('user');
         Route::get('users', [UserController::class, 'index'])->name('users.index');
+        Route::get('audit-logs', [AuditLogController::class, 'index'])->name('audit-logs.index');
 
         // PDF/Excel exports (same controller as the web routes). Before the {model} routes.
         Route::get('reports/{report}/export', [ExportController::class, 'report'])->name('reports.export');
@@ -74,6 +76,7 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
             Route::get('collections', [ReportController::class, 'collections'])->name('collections');
             Route::get('due', [ReportController::class, 'due'])->name('due');
             Route::get('customer-ledger', [ReportController::class, 'customerLedger'])->name('customer-ledger');
+            Route::get('customer-interest', [ReportController::class, 'customerInterest'])->name('customer-interest');
             Route::get('loan-outstanding', [ReportController::class, 'loanOutstanding'])->name('loan-outstanding');
             Route::get('collateral', [ReportController::class, 'collateral'])->name('collateral');
         });

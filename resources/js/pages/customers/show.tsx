@@ -3,21 +3,30 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { CustomerArchiveAction } from '@/features/customers/archive-action';
+import { CustomerHistory, type HistoryFilters, type InterestData, type LedgerData } from '@/features/customers/customer-history';
 import { CustomerStatusBadge } from '@/features/customers/status-badge';
 import { type Customer, type CustomerLoan } from '@/features/customers/types';
+import { type Payment } from '@/features/payments/types';
 import { useCan } from '@/hooks/use-can';
 import AppLayout from '@/layouts/app-layout';
-import { formatDate, formatDateTime, formatMoney } from '@/lib/format';
+import { formatDate, formatDateTime, formatMoney, formatRate } from '@/lib/format';
 import { cn } from '@/lib/utils';
-import { type BreadcrumbItem } from '@/types';
+import { type BreadcrumbItem, type Paginated } from '@/types';
 import { Head, Link } from '@inertiajs/react';
-import { BookOpen, HandCoins, Pencil, ReceiptText, UserRound } from 'lucide-react';
+import { HandCoins, Pencil, UserRound } from 'lucide-react';
 import { type ReactNode } from 'react';
 
 interface ShowCustomerProps {
     customer: Customer;
     /** Null when the user may not view loans (the server decides). */
     activeLoans: CustomerLoan[] | null;
+    history: HistoryFilters;
+    historyLoans: string[];
+    firstYear: number;
+    /** Null without payments.view / reports.view. */
+    payments: Paginated<Payment> | null;
+    ledger: LedgerData | null;
+    interest: InterestData | null;
 }
 
 function Stat({ label, value, tone }: { label: string; value: ReactNode; tone?: 'danger' }) {
@@ -53,7 +62,7 @@ const loanColumns: DataTableColumn<CustomerLoan>[] = [
     {
         key: 'rate',
         header: 'Rate',
-        cell: (loan) => `${loan.interest_rate} (${loan.interest_rate_type} / ${loan.interest_period_unit})`,
+        cell: (loan) => `${formatRate(loan.interest_rate)}% (${loan.interest_rate_type} / ${loan.interest_period_unit})`,
         className: 'hidden md:table-cell whitespace-nowrap',
     },
     {
@@ -64,7 +73,7 @@ const loanColumns: DataTableColumn<CustomerLoan>[] = [
     { key: 'next_due', header: 'Next due', cell: (loan) => formatDate(loan.next_due_date), className: 'whitespace-nowrap' },
 ];
 
-export default function ShowCustomer({ customer, activeLoans }: ShowCustomerProps) {
+export default function ShowCustomer({ customer, activeLoans, history, historyLoans, firstYear, payments, ledger, interest }: ShowCustomerProps) {
     const can = useCan();
     const summary = customer.summary;
     const missed = summary?.consecutive_missed ?? 0;
@@ -164,31 +173,20 @@ export default function ShowCustomer({ customer, activeLoans }: ShowCustomerProp
                                 </CardContent>
                             </Card>
                         )}
-
-                        {(can('payments.view') || can('reports.view')) && (
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle>Payments &amp; ledger</CardTitle>
-                                    <CardDescription>
-                                        Payment history and the customer ledger open from here once the Payments and Reports modules are available.
-                                    </CardDescription>
-                                </CardHeader>
-                                <CardContent className="flex flex-wrap gap-2">
-                                    {can('payments.view') && (
-                                        <Button variant="outline" disabled>
-                                            <ReceiptText className="size-4" /> Payment history
-                                        </Button>
-                                    )}
-                                    {can('reports.view') && (
-                                        <Button variant="outline" disabled>
-                                            <BookOpen className="size-4" /> Customer ledger
-                                        </Button>
-                                    )}
-                                </CardContent>
-                            </Card>
-                        )}
                     </div>
                 </div>
+
+                {(payments || ledger) && (
+                    <CustomerHistory
+                        customerNo={customer.customer_no}
+                        filters={history}
+                        loans={historyLoans}
+                        firstYear={firstYear}
+                        payments={payments}
+                        ledger={ledger}
+                        interest={interest}
+                    />
+                )}
             </div>
         </AppLayout>
     );

@@ -2,6 +2,7 @@
 
 namespace App\Actions\Customers;
 
+use App\Domain\Audit\AuditTrail;
 use App\Domain\Settings\LoanSettings;
 use App\Enums\CustomerStatus;
 use App\Models\Customer;
@@ -18,12 +19,17 @@ use Throwable;
  * New customers get a generated customer number (format: Settings → numbering) and start active; status is
  * changed only through ChangeCustomerStatus (customers.archive). A replaced or removed photo is
  * deleted after commit, so a rolled-back update never loses the current file.
+ *
+ * Audited (customer.created / customer.updated, changed fields only). The NID is personal data: the
+ * audit keeps only a masked form (last 4 digits), enough to see that and how it changed; the photo is
+ * recorded as present / replaced / removed, never its path.
  */
 class SaveCustomer
 {
     public function __construct(
         private readonly DocumentNumberGenerator $numbers,
         private readonly LoanSettings $settings,
+        private readonly AuditTrail $audit,
     ) {}
 
     /**
@@ -45,6 +51,8 @@ class SaveCustomer
                 ]);
 
                 $previousImage = $customer->image_path;
+                $isNew = ! $customer->exists;
+                $before = $isNew ? [] : $this->auditable($customer);
 
                 $customer->fill([
                     'name' => $data['name'],
@@ -59,6 +67,16 @@ class SaveCustomer
 
                 $customer->save();
 
+                $after = $this->auditable($customer);
+
+                if ($previousImage !== null && $customer->image_path !== null && $previousImage !== $customer->image_path) {
+                    $after['photo'] = 'replaced';
+                }
+
+                $isNew
+                    ? $this->audit->record('customer.created', $customer, [], ['customer_no' => $customer->customer_no, 'status' => $customer->status->value, ...$after], "Customer {$customer->customer_no} created")
+                    : $this->audit->recordChanges('customer.updated', $customer, $before, $after, "Customer {$customer->customer_no} updated");
+
                 if ($previousImage !== null && $previousImage !== $customer->image_path) {
                     DB::afterCommit(fn () => Storage::disk(Customer::IMAGE_DISK)->delete($previousImage));
                 }
@@ -72,5 +90,21 @@ class SaveCustomer
 
             throw $e;
         }
+    }
+
+    /**
+     * @return array<string, string|null>
+     */
+    private function auditable(Customer $customer): array
+    {
+        $nid = $customer->nid;
+
+        return [
+            'name' => $customer->name,
+            'mobile' => $customer->mobile,
+            'nid' => $nid === null || $nid === '' ? null : str_repeat('•', max(strlen($nid) - 4, 0)).substr($nid, -4),
+            'address' => $customer->address,
+            'photo' => $customer->image_path !== null ? 'present' : 'none',
+        ];
     }
 }

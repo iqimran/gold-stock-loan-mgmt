@@ -35,6 +35,9 @@ class LoanSettings
 {
     private const CACHE_KEY = 'settings.loans';
 
+    /** Interest bases offered in Settings: reducing balance only (business rule: principal payments reduce the interest base). */
+    public const INTEREST_BASES = [InterestBase::Outstanding->value];
+
     public const EFFECTS = [
         'shop' => 'Printed on receipts and exports from now on, including reprints of old receipts.',
         'currency' => 'Display only (screens, receipts, exports). Amounts are never converted.',

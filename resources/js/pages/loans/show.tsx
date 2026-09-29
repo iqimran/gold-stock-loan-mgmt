@@ -14,7 +14,7 @@ import { type InterestPeriodRow, type Loan, type LoanPayment, type LoanSummary }
 import { useCan } from '@/hooks/use-can';
 import { useVisitState } from '@/hooks/use-visit-state';
 import AppLayout from '@/layouts/app-layout';
-import { formatDate, formatDateTime, formatMoney } from '@/lib/format';
+import { formatDate, formatDateTime, formatMoney, formatRate } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, usePage } from '@inertiajs/react';
@@ -303,7 +303,7 @@ export default function ShowLoan({ loan, customer, summary, collateral, payments
                     <Figure label="Outstanding principal" value={formatMoney(loan.outstanding_principal)} />
                     <Figure
                         label="Interest"
-                        value={`${loan.interest_rate}% ${RATE_TYPE[loan.interest_rate_type]}`}
+                        value={`${formatRate(loan.interest_rate)}% ${RATE_TYPE[loan.interest_rate_type]}`}
                         hint={
                             summary.interest_due !== '0.00' ? (
                                 <span className="text-red-600 dark:text-red-400">{formatMoney(summary.interest_due)} due</span>
@@ -337,7 +337,7 @@ export default function ShowLoan({ loan, customer, summary, collateral, payments
                                                 </Detail>
                                                 <Detail label="Start date">{formatDate(loan.start_date)}</Detail>
                                                 <Detail label="Interest">
-                                                    {loan.interest_rate}% {RATE_TYPE[loan.interest_rate_type]}, charged per{' '}
+                                                    {formatRate(loan.interest_rate)}% {RATE_TYPE[loan.interest_rate_type]}, charged per{' '}
                                                     {loan.interest_period_unit}
                                                 </Detail>
                                                 <Detail label="Next due">{formatDate(loan.next_due_date)}</Detail>

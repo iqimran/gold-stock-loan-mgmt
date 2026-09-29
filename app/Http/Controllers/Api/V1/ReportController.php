@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Domain\Reporting\CollateralReport;
 use App\Domain\Reporting\CollectionReport;
+use App\Domain\Reporting\CustomerInterestReport;
 use App\Domain\Reporting\CustomerLedgerReport;
 use App\Domain\Reporting\DueReport;
 use App\Domain\Reporting\LoanOutstandingReport;
@@ -62,6 +63,27 @@ class ReportController extends Controller
                 'customer' => ['customer_no' => $ledger['customer']->customer_no, 'name' => $ledger['customer']->name, 'mobile' => $ledger['customer']->mobile],
                 'loan' => $ledger['loan']?->loan_no,
                 'totals' => $report->totals($ledger['customer'], $filters),
+                'filters' => ['from' => $filters['from'], 'to' => $filters['to']],
+            ])
+            ->response();
+    }
+
+    /**
+     * Month-by-month interest statement: GET /reports/customer-interest?customer=… (optional loan, from /
+     * to on the due date).
+     */
+    public function customerInterest(Request $request, CustomerInterestReport $report): JsonResponse
+    {
+        Gate::authorize(Permission::ReportsView->value);
+
+        $selection = ReportFilters::ledger($request);
+        $filters = ['loan_id' => $selection['loan_id'], 'from' => $selection['from'], 'to' => $selection['to']];
+
+        return JsonResource::collection($report->paginate($selection['customer'], $filters, $request->integer('per_page', 50)))
+            ->additional([
+                'customer' => ['customer_no' => $selection['customer']->customer_no, 'name' => $selection['customer']->name, 'mobile' => $selection['customer']->mobile],
+                'loan' => $selection['loan']?->loan_no,
+                'totals' => $report->totals($selection['customer'], $filters),
                 'filters' => ['from' => $filters['from'], 'to' => $filters['to']],
             ])
             ->response();

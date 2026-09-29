@@ -10,21 +10,62 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 
 /**
- * Writes the audit trail for sensitive changes (see the audit_logs migration for scope).
+ * Writes the audit trail for financial and sensitive changes (docs/02 "Audit", Task 019): actor, time,
+ * action (event), entity (auditable type + id), before/after values, and the reason where one is required
+ * (kept in new_values.reason and the description).
  *
- * Called explicitly from the actions that perform the change, inside their transaction, so an
- * audit entry exists exactly when the change is committed.
+ * Called explicitly from the domain service that performs the change, inside its transaction, so an
+ * audit entry exists exactly when the change is committed. Events:
+ *
+ *   loan.created, loan.updated, loan.status_changed            App\Domain\Loan\LoanService
+ *   payment.created, payment.reversed                           PaymentService, PaymentReversalService
+ *   collateral.created, collateral.updated, collateral.released App\Domain\Collateral\CollateralService
+ *   customer.created, customer.updated, customer.archived, customer.restored   customer actions
+ *   settings.loans_updated                                      App\Domain\Settings\LoanSettings
+ *   user.created, user.updated, user.activated, user.deactivated   user actions
+ *   role.created, role.updated, role.deleted                    role actions
+ *   auth.login, auth.login_failed, auth.token_issued, auth.token_failed   sign-ins
+ *
+ * Secrets (passwords, tokens) are never stored: such attributes are replaced by "[changed]".
  */
 class AuditTrail
 {
+    /** Every audited action with its label (the audit log screen's filter). */
+    public const EVENTS = [
+        'loan.created' => 'Loan created',
+        'loan.updated' => 'Loan terms changed',
+        'loan.status_changed' => 'Loan status changed',
+        'payment.created' => 'Payment recorded',
+        'payment.reversed' => 'Payment reversed',
+        'collateral.created' => 'Collateral added',
+        'collateral.updated' => 'Collateral corrected',
+        'collateral.released' => 'Collateral released',
+        'customer.created' => 'Customer created',
+        'customer.updated' => 'Customer updated',
+        'customer.archived' => 'Customer archived',
+        'customer.restored' => 'Customer restored',
+        'settings.loans_updated' => 'Loan settings changed',
+        'user.created' => 'User created',
+        'user.updated' => 'User updated',
+        'user.activated' => 'User activated',
+        'user.deactivated' => 'User deactivated',
+        'role.created' => 'Role created',
+        'role.updated' => 'Role updated',
+        'role.deleted' => 'Role deleted',
+        'auth.login' => 'Signed in',
+        'auth.login_failed' => 'Sign-in failed',
+        'auth.token_issued' => 'API token issued',
+        'auth.token_failed' => 'API sign-in failed',
+    ];
+
     /** Attribute names whose values are never stored. */
-    private const SECRET = ['password', 'remember_token', 'two_factor_secret', 'two_factor_recovery_codes'];
+    private const SECRET = ['password', 'password_confirmation', 'current_password', 'remember_token', 'token', 'plain_text_token', 'two_factor_secret', 'two_factor_recovery_codes'];
 
     /**
      * @param  array<string, mixed>  $old
      * @param  array<string, mixed>  $new
      */
-    public function record(string $event, ?Model $subject = null, array $old = [], array $new = [], ?string $description = null, ?int $userId = null): AuditLog
+    public function record(string $event, ?Model $subject = null, array $old = [], array $new = [], ?string $description = null, ?int $userId = null, bool $system = false): AuditLog
     {
         $request = app()->runningInConsole() && ! app()->runningUnitTests() ? null : request();
 
@@ -35,7 +76,8 @@ class AuditTrail
             'description' => $description !== null ? Str::limit($description, 250) : null,
             'old_values' => $old === [] ? null : $this->clean($old),
             'new_values' => $new === [] ? null : $this->clean($new),
-            'user_id' => $userId ?? Auth::id(),
+            // A system action (scheduler / automatic status) has no actor, even inside a user's request.
+            'user_id' => $system ? null : ($userId ?? Auth::id()),
             'ip_address' => $request?->ip(),
             'user_agent' => $request ? Str::limit((string) $request->userAgent(), 250, '') : null,
         ]);

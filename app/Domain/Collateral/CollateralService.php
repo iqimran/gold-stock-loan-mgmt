@@ -2,6 +2,7 @@
 
 namespace App\Domain\Collateral;
 
+use App\Domain\Audit\AuditTrail;
 use App\Domain\Loan\LoanHistory;
 use App\Domain\Settings\LoanSettings;
 use App\Enums\CollateralStatus;
@@ -42,6 +43,7 @@ class CollateralService
         private readonly DocumentNumberGenerator $numbers,
         private readonly LoanHistory $history,
         private readonly LoanSettings $settings,
+        private readonly AuditTrail $audit,
     ) {}
 
     /**
@@ -69,6 +71,9 @@ class CollateralService
                 'collateral_no' => $item->collateral_no,
                 'details' => $this->snapshot($item),
             ]);
+            $this->audit->record('collateral.created', $item, [], [
+                'collateral_no' => $item->collateral_no, 'loan_no' => $locked->loan_no, 'status' => CollateralStatus::Held->value, ...$this->snapshot($item),
+            ], "Collateral {$item->collateral_no} added to loan {$locked->loan_no}", $actor?->id);
 
             return $item;
         });
@@ -112,6 +117,9 @@ class CollateralService
                 'after' => array_intersect_key($after, array_flip($changed)),
                 'reason' => $reason,
             ], fn ($value) => $value !== null));
+            $this->audit->record('collateral.updated', $locked, array_intersect_key($before, array_flip($changed)),
+                array_filter([...array_intersect_key($after, array_flip($changed)), 'reason' => $reason], fn ($value) => $value !== null),
+                "Collateral {$locked->collateral_no} corrected".($reason ? ": {$reason}" : ''), $actor?->id);
 
             return $item->setRawAttributes($locked->getAttributes(), true);
         });
@@ -146,6 +154,10 @@ class CollateralService
                 'collateral_no' => $locked->collateral_no,
                 'reason' => $reason,
             ]);
+            $this->audit->record('collateral.released', $locked, ['status' => CollateralStatus::Held->value], [
+                'status' => CollateralStatus::Released->value, 'loan_no' => $loan->loan_no, 'loan_status' => $loan->status->value,
+                'released_at' => $locked->released_at, 'reason' => $reason,
+            ], "Collateral {$locked->collateral_no} released: {$reason}", $actor->id);
 
             return $item->setRawAttributes($locked->getAttributes(), true);
         });

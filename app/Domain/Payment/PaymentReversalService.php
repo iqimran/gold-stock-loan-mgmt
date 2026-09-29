@@ -2,6 +2,7 @@
 
 namespace App\Domain\Payment;
 
+use App\Domain\Audit\AuditTrail;
 use App\Domain\Interest\InterestScheduleService;
 use App\Domain\Ledger\CustomerLedgerService;
 use App\Domain\Loan\LoanHistory;
@@ -40,6 +41,7 @@ class PaymentReversalService
         private readonly LoanService $loans,
         private readonly CustomerLedgerService $ledger,
         private readonly LoanHistory $history,
+        private readonly AuditTrail $audit,
     ) {}
 
     public function reverse(Payment $payment, User $actor, string $reason): Payment
@@ -94,6 +96,18 @@ class PaymentReversalService
 
             $this->schedule->sync($loan);
             $this->loans->syncOverdueStatus($loan);
+
+            $this->audit->record('payment.reversed', $locked, ['status' => PaymentStatus::Posted->value], [
+                'status' => PaymentStatus::Reversed->value,
+                'receipt_no' => $locked->receipt_no,
+                'loan_no' => $loan->loan_no,
+                'amount' => $locked->amount,
+                'interest' => $interest,
+                'principal' => $principal,
+                'fee' => $fee,
+                'reversed_at' => $locked->reversed_at,
+                'reason' => $reason,
+            ], "Payment {$locked->receipt_no} reversed: {$reason}", $actor->id);
 
             $this->history->record($loan, LoanEventType::PaymentReversed, $actor, [
                 'receipt_no' => $locked->receipt_no,
