@@ -32,7 +32,10 @@ class UserController extends Controller
         $users = User::query()
             ->with('roles')
             ->when($filters['search'] ?? null, function ($query, string $search) {
-                $query->where(fn ($q) => $q->where('name', 'like', "%{$search}%")->orWhere('email', 'like', "%{$search}%"));
+                // Case-insensitive on every database (PostgreSQL LIKE is case-sensitive); %, _ are literal.
+                $contains = '%'.str_replace(['!', '%', '_'], ['!!', '!%', '!_'], mb_strtolower($search)).'%';
+                $query->where(fn ($q) => $q->whereRaw("LOWER(name) LIKE ? ESCAPE '!'", [$contains])
+                    ->orWhereRaw("LOWER(email) LIKE ? ESCAPE '!'", [$contains]));
             })
             ->when($filters['status'] ?? null, fn ($query, string $status) => $query->where('is_active', $status === 'active'))
             ->orderBy('name')

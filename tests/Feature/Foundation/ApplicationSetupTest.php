@@ -5,6 +5,7 @@ namespace Tests\Feature\Foundation;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
@@ -16,6 +17,24 @@ class ApplicationSetupTest extends TestCase
     public function test_health_check_endpoint_responds(): void
     {
         $this->get('/up')->assertOk();
+    }
+
+    public function test_health_check_fails_when_the_database_is_unreachable(): void
+    {
+        config([
+            'app.debug' => false,
+            'database.connections.unreachable' => ['driver' => 'sqlite', 'database' => '/nonexistent/health.sqlite', 'prefix' => ''],
+        ]);
+        $default = DB::getDefaultConnection();
+        DB::setDefaultConnection('unreachable');
+
+        try {
+            $response = $this->get('/up');
+        } finally {
+            DB::setDefaultConnection($default);
+        }
+
+        $response->assertStatus(500);
     }
 
     public function test_home_redirects_to_dashboard(): void

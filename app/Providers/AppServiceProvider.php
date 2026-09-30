@@ -9,8 +9,10 @@ use App\Models\User;
 use App\Support\Database\BlueprintMacros;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Foundation\Events\DiagnosingHealth;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
@@ -50,6 +52,9 @@ class AppServiceProvider extends ServiceProvider
 
         // Admin has full access to every ability.
         Gate::before(fn (User $user) => $user->isAdmin() ? true : null);
+
+        // The /up health check (load balancers, Docker) also fails when the database is unreachable.
+        Event::listen(DiagnosingHealth::class, fn () => DB::select('select 1'));
 
         $this->configureRateLimiting();
     }

@@ -44,7 +44,7 @@ The one deliberate difference is the database: **PostgreSQL** (16+ recommended),
 
 ## Local development
 
-Requirements: PHP 8.2+ (with `pdo_pgsql`, `bcmath`), Composer, Node 20+, PostgreSQL.
+Requirements: PHP 8.2+ (with `pdo_pgsql`, `bcmath`, `gd`, `intl`, `zip`), Composer, Node 20+, PostgreSQL 16+.
 
 ```bash
 composer install
@@ -54,12 +54,56 @@ php artisan key:generate
 createdb gold_loan
 php artisan app:check-environment   # validates config + PostgreSQL connectivity
 php artisan migrate --seed          # creates roles, permissions and the initial Admin
-composer dev                        # serves app, queue, logs and Vite
+composer dev                        # serves app, queue listener, logs and Vite
+php artisan schedule:work           # optional, separate terminal: runs the daily interest job
 ```
 
 The seeder creates the Admin from `ADMIN_NAME` / `ADMIN_EMAIL` / `ADMIN_PASSWORD`. In local
 environments an empty `ADMIN_PASSWORD` falls back to `password`; elsewhere the admin is skipped
 until a password is provided. Public self-registration is disabled — an Admin creates staff accounts.
+There is no demo-data seeder; model factories (`database/factories`) are for tests.
+
+## Environment variables
+
+`.env.example` lists every variable with comments. The ones that matter most:
+
+| Variable | Purpose |
+|----------|---------|
+| `APP_ENV`, `APP_DEBUG`, `APP_KEY`, `APP_URL` | Production: `production`, `false`, generated key, public `https://` URL. |
+| `APP_TIMEZONE` | Business-date policy: "today", due dates and the daily interest run. Set once, before the first loan. |
+| `TRUSTED_PROXIES` | Reverse proxy IPs/CIDRs whose `X-Forwarded-*` headers are trusted. |
+| `DB_*` | PostgreSQL connection (`DB_CONNECTION=pgsql` is required outside tests). |
+| `SESSION_SECURE_COOKIE` | `true` in production (HTTPS). |
+| `LOG_CHANNEL`, `LOG_STACK`, `LOG_LEVEL`, `LOG_DAILY_DAYS` | Logging; production: `LOG_LEVEL=info`. |
+| `ADMIN_NAME`, `ADMIN_EMAIL`, `ADMIN_PASSWORD` | Initial Admin created by `db:seed` (password required outside local). |
+| `SHOP_*`, `CURRENCY_*`, `GRACE_DAYS`, `ALERT_MISSED_PERIOD_THRESHOLD` | Defaults until values are saved in Settings. |
+| `INTEREST_BASE`, `INTEREST_DUE`, `INTEREST_YEARLY_CONVERSION` | Interest method for new loans (`config/loans.php`). |
+| `EXPORT_MAX_ROWS` | Largest PDF/Excel export (default 5000 rows). |
+| `SANCTUM_TOKEN_EXPIRATION` | API token lifetime in minutes. |
+| `RUN_MIGRATIONS` | Docker production: the `app` container migrates on start when `true`. |
+
+`php artisan app:check-environment` validates the configuration (key, URL, debug, secure cookie, PostgreSQL
+driver/version and connectivity) and exits non-zero on errors.
+
+## Migrations
+
+```bash
+php artisan migrate            # development
+php artisan migrate --force    # production (take a backup first)
+php artisan db:seed --class=RolesAndPermissionsSeeder --force   # after upgrades: registers new permissions
+```
+
+Destructive commands (`migrate:fresh`, `db:wipe`, …) are refused when `APP_ENV=production`.
+
+## Scheduler and queue
+
+- **Scheduler** — `loans:process-interest` runs daily at 00:05 (`APP_TIMEZONE`): generates due interest
+  periods, refreshes due/overdue statuses and raises/resolves missed-payment alerts. Idempotent; run it by hand
+  with `php artisan loans:process-interest [--date=YYYY-MM-DD]`. Needs `php artisan schedule:work` (Docker
+  `scheduler` service) or a cron entry `* * * * * php artisan schedule:run`.
+- **Queue** — nothing is queued: PDF/Excel exports run in the request, capped by `EXPORT_MAX_ROWS`.
+  `QUEUE_CONNECTION=database` is configured; start a worker (`php artisan queue:work`, Docker `--profile
+  queue`) only if queued jobs are added.
 
 ## Docker development
 
@@ -67,17 +111,33 @@ until a password is provided. Public self-registration is disabled — an Admin 
 docker compose up -d                # app (PHP-FPM), nginx, node (Vite HMR), pgsql
 docker compose exec app php artisan key:generate
 docker compose exec app php artisan migrate --seed
+docker compose exec app php artisan test
+docker compose exec app php artisan schedule:work   # optional: daily interest job
 ```
 
 App: http://localhost:8080 · PostgreSQL: `127.0.0.1:55432` (loopback only). `DB_*` values come from
-`docker-compose.yml`, so the same `.env` works inside and outside Docker. Production Docker
-configuration is part of `docs/tasks/022-production-readiness.md`.
+`docker-compose.yml`, so the same `.env` works inside and outside Docker.
+
+## Production (Docker)
+
+```bash
+docker compose -f docker-compose.prod.yml build
+docker compose -f docker-compose.prod.yml up -d pgsql
+docker compose -f docker-compose.prod.yml run --rm app php artisan migrate --force
+docker compose -f docker-compose.prod.yml run --rm app php artisan db:seed --force
+docker compose -f docker-compose.prod.yml up -d    # app, web (Nginx), scheduler, pgsql
+```
+
+Images: `production` (PHP-FPM with code, production dependencies and built assets) and `web` (Nginx with
+`public/`). Health check: `GET /up` (application + database). Full guide — `.env` values, TLS/reverse proxy,
+updates, logging, backups and restores, non-Docker servers: [`docs/deployment.md`](docs/deployment.md).
 
 ## Checks
 
 ```bash
 npm run build           # feature tests render Inertia pages and need the Vite manifest
 php artisan test        # PHPUnit (in-memory SQLite)
+php artisan test --configuration=phpunit.pgsql.xml   # same suite on PostgreSQL (database gold_loan_testing)
 vendor/bin/pint --test  # PHP code style
 npx eslint . && npx tsc --noEmit && npm run format:check
 ```

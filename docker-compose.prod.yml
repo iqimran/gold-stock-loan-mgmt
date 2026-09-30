@@ -1,0 +1,92 @@
+# Production: docker compose -f docker-compose.prod.yml up -d --build   (see docs/deployment.md)
+#
+# app (PHP-FPM) + web (Nginx) + scheduler (daily interest run) + pgsql. Configuration comes from .env
+# (copy .env.example and set APP_ENV=production, APP_DEBUG=false, APP_KEY, APP_URL, DB_PASSWORD, ...).
+# Put a TLS-terminating reverse proxy in front of "web" and set TRUSTED_PROXIES accordingly.
+name: gold-loan-prod
+
+x-app: &app
+  build:
+    context: .
+    target: production
+  image: gold-loan-app:${APP_IMAGE_TAG:-latest}
+  env_file: .env
+  environment: &app-environment
+    APP_ENV: production
+    DB_CONNECTION: pgsql
+    DB_HOST: pgsql
+    DB_PORT: 5432
+    # Container logs (docker compose logs) plus daily files in the storage volume.
+    LOG_CHANNEL: stack
+    LOG_STACK: ${LOG_STACK:-daily,stderr}
+  volumes:
+    # Uploaded customer images and shop logo (storage/app/private), logs, sessions/cache files.
+    - storage:/var/www/html/storage
+  depends_on:
+    pgsql:
+      condition: service_healthy
+  restart: unless-stopped
+
+services:
+  app:
+    <<: *app
+    environment:
+      <<: *app-environment
+      # Runs `php artisan migrate --force` on start when true (docker/php/entrypoint.sh).
+      RUN_MIGRATIONS: ${RUN_MIGRATIONS:-false}
+    healthcheck:
+      test: ["CMD-SHELL", "SCRIPT_NAME=/fpm-ping SCRIPT_FILENAME=/fpm-ping REQUEST_METHOD=GET cgi-fcgi -bind -connect 127.0.0.1:9000 | grep -q pong"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  web:
+    build:
+      context: .
+      target: web
+    image: gold-loan-web:${APP_IMAGE_TAG:-latest}
+    ports:
+      - "${APP_PORT:-8080}:80"
+    depends_on:
+      app:
+        condition: service_healthy
+    healthcheck:
+      # /up checks the application and its database connection.
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/up || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+  # Laravel scheduler: loans:process-interest daily at 00:05 (APP_TIMEZONE) — interest periods,
+  # due/overdue statuses and missed-payment alerts.
+  scheduler:
+    <<: *app
+    command: ["php", "artisan", "schedule:work"]
+
+  # Nothing is queued today (exports run in the request); enable with `--profile queue` if jobs are added.
+  queue:
+    <<: *app
+    command: ["php", "artisan", "queue:work", "--tries=3", "--max-time=3600"]
+    profiles: ["queue"]
+
+  pgsql:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${DB_DATABASE:-gold_loan}
+      POSTGRES_USER: ${DB_USERNAME:-gold_loan}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+    volumes:
+      - pgsql-data:/var/lib/postgresql/data
+    # Not published: only reachable on the internal Docker network.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+volumes:
+  storage:
+  pgsql-data:

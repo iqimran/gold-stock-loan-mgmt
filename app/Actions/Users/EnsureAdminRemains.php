@@ -22,10 +22,12 @@ class EnsureAdminRemains
             return;
         }
 
+        // Lock the rows, then count them: PostgreSQL rejects FOR UPDATE on an aggregate (COUNT) query.
         $otherActiveAdmins = User::role(SystemRole::Admin->value)
             ->active()
             ->whereKeyNot($user->getKey())
             ->lockForUpdate()
+            ->pluck('users.id')
             ->count();
 
         if ($otherActiveAdmins === 0) {
