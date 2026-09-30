@@ -57,7 +57,7 @@ class PaymentService
      */
     public function post(Loan $loan, array $data, User $actor, ?string $idempotencyKey = null): Payment
     {
-        if ($idempotencyKey !== null && ($existing = $this->replay($idempotencyKey, $loan, $data))) {
+        if ($idempotencyKey !== null && ($existing = $this->replay($idempotencyKey, $loan, $data, $actor))) {
             return $existing;
         }
 
@@ -65,7 +65,7 @@ class PaymentService
             return DB::transaction(fn () => $this->postLocked($loan, $data, $actor, $idempotencyKey));
         } catch (UniqueConstraintViolationException $e) {
             // A concurrent request with the same idempotency key committed first.
-            if ($idempotencyKey !== null && ($existing = $this->replay($idempotencyKey, $loan, $data))) {
+            if ($idempotencyKey !== null && ($existing = $this->replay($idempotencyKey, $loan, $data, $actor))) {
                 return $existing;
             }
 
@@ -105,7 +105,7 @@ class PaymentService
             $locked->outstanding_principal,
         );
 
-        $payment = Payment::create([
+        $payment = new Payment([
             'receipt_no' => $this->numbers->nextIn($this->settings->numbering('receipt')),
             'idempotency_key' => $idempotencyKey,
             'customer_id' => $locked->customer_id,
@@ -118,6 +118,9 @@ class PaymentService
             'notes' => $data['notes'] ?? null,
             'status' => PaymentStatus::Posted,
         ]);
+        // The poster, explicitly (not whoever happens to be signed in): replays are scoped to them.
+        $payment->created_by = $actor->id;
+        $payment->save();
 
         foreach ($allocation->periods as $periodId => $interest) {
             $period = $openPeriods[$periodId];
@@ -219,12 +222,17 @@ class PaymentService
      *
      * @param  array<string, mixed>  $data
      */
-    private function replay(string $key, Loan $loan, array $data): ?Payment
+    private function replay(string $key, Loan $loan, array $data, User $actor): ?Payment
     {
         $existing = Payment::query()->with('allocations')->where('idempotency_key', $key)->first();
 
         if ($existing === null) {
             return null;
+        }
+
+        // A key belongs to the user who used it: another user's retry never returns (or reveals) their payment.
+        if ($existing->created_by !== $actor->id) {
+            throw new ConflictHttpException('This idempotency key has already been used.');
         }
 
         $same = $existing->loan_id === $loan->id

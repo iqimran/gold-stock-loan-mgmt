@@ -24,6 +24,7 @@ const AREA_LABELS: Record<string, string> = {
     user: 'Users',
     role: 'Roles',
     auth: 'Sign-ins',
+    export: 'Exports',
 };
 
 type Values = Record<string, unknown> | null;

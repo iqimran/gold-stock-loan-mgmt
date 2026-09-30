@@ -25,6 +25,7 @@ use Illuminate\Support\Str;
  *   user.created, user.updated, user.activated, user.deactivated   user actions
  *   role.created, role.updated, role.deleted                    role actions
  *   auth.login, auth.login_failed, auth.token_issued, auth.token_failed   sign-ins
+ *   export.downloaded                                           App\Http\Controllers\ExportController
  *
  * Secrets (passwords, tokens) are never stored: such attributes are replaced by "[changed]".
  */
@@ -56,6 +57,7 @@ class AuditTrail
         'auth.login_failed' => 'Sign-in failed',
         'auth.token_issued' => 'API token issued',
         'auth.token_failed' => 'API sign-in failed',
+        'export.downloaded' => 'Export downloaded',
     ];
 
     /** Attribute names whose values are never stored. */

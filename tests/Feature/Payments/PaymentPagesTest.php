@@ -244,7 +244,7 @@ class PaymentPagesTest extends TestCase
         }
 
         $this->actingAs($this->cashier)->post('/payments/RCPT-202612-000001/reverse', ['reason' => 'Try'])->assertForbidden();
-        $this->actingAs($this->userWith(Permission::PaymentsCreate))->post('/payments', ['loan' => $loan->loan_no, 'type' => 'interest', 'amount' => '1', 'method' => 'cash', 'payment_date' => '2026-12-15'])
+        $this->actingAs($this->userWith(Permission::PaymentsCreate))->post('/payments', ['loan' => $loan->loan_no, 'type' => 'interest', 'amount' => '1', 'method' => 'cash', 'payment_date' => '2026-12-15', 'idempotency_key' => 'pages-key-1'])
             ->assertForbidden(); // cannot see the loan
     }
 }

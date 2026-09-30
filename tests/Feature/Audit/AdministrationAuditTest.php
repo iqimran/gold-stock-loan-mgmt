@@ -179,7 +179,7 @@ class AdministrationAuditTest extends TestCase
                 ->where('logs.data.0.user.name', 'Karim Staff')
                 ->where('logs.data.0.new_values.amount', '100.00')
                 ->has('events')
-                ->where('areas', ['loan', 'payment', 'collateral', 'customer', 'settings', 'user', 'role', 'auth']));
+                ->where('areas', ['loan', 'payment', 'collateral', 'customer', 'settings', 'user', 'role', 'auth', 'export']));
 
         // By area, by action, by record number (a loan number also finds its payments and collateral), by user.
         $this->actingAs($admin)->get('/admin/audit-logs?area=loan')->assertInertia(fn (Assert $page) => $page->has('logs.data', 2));

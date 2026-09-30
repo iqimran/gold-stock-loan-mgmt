@@ -50,7 +50,8 @@ return [
     |
     */
 
-    'expiration' => null,
+    // API tokens expire (minutes; default 30 days). Browser sessions are unaffected.
+    'expiration' => env('SANCTUM_TOKEN_EXPIRATION', 43200),
 
     /*
     |--------------------------------------------------------------------------

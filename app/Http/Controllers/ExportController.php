@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Domain\Audit\AuditTrail;
 use App\Domain\Reporting\Export\ExcelExporter;
 use App\Domain\Reporting\Export\ExportDataset;
 use App\Domain\Reporting\Export\ExportDatasets;
@@ -23,7 +24,7 @@ use Symfony\Component\HttpFoundation\Response;
  * Every export needs reports.export (docs/05: exports of customer data are sensitive) AND the permission
  * to see the data itself (reports.view for reports; the list's own view permission for lists, enforced
  * by its search request). Filters are validated exactly as for the screen/report, so the file contains
- * what the user sees for the same query string. Each export is logged (who, what, filters, rows).
+ * what the user sees for the same query string. Each export is audited (who, what, filters, rows).
  */
 class ExportController extends Controller
 {
@@ -31,6 +32,7 @@ class ExportController extends Controller
         private readonly ExportDatasets $datasets,
         private readonly PdfExporter $pdf,
         private readonly ExcelExporter $excel,
+        private readonly AuditTrail $audit,
     ) {}
 
     public function report(Request $request, string $report): Response
@@ -76,13 +78,12 @@ class ExportController extends Controller
     {
         $format = $request->validate(['format' => ['nullable', Rule::in(['xlsx', 'pdf'])]])['format'] ?? 'xlsx';
 
-        Log::info('Export downloaded', [
-            'user_id' => $request->user()->id,
-            'export' => $what,
-            'format' => $format,
-            'rows' => count($dataset->rows),
-            'filters' => $dataset->filters,
-        ]);
+        // Exports of customer data are sensitive (docs/05): recorded in the audit log with the filters;
+        // the application log keeps no personal data.
+        $this->audit->record('export.downloaded', null, [], [
+            'export' => $what, 'format' => $format, 'rows' => count($dataset->rows), 'filters' => $dataset->filters,
+        ], "{$dataset->title} ({$format}, ".count($dataset->rows).' rows)');
+        Log::info('Export downloaded', ['user_id' => $request->user()->id, 'export' => $what, 'format' => $format, 'rows' => count($dataset->rows)]);
 
         return $format === 'pdf'
             ? $this->pdf->download($dataset, $request->user())

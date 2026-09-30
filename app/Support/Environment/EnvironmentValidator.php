@@ -48,6 +48,10 @@ class EnvironmentValidator
             $warnings[] = 'APP_URL should use https:// in production.';
         }
 
+        if ($production && str_starts_with((string) $this->config->get('app.url'), 'https://') && ! $this->config->get('session.secure')) {
+            $warnings[] = 'SESSION_SECURE_COOKIE should be true in production (HTTPS), so the session cookie is never sent over plain HTTP.';
+        }
+
         $connection = (string) $this->config->get('database.default');
         $driver = (string) $this->config->get("database.connections.{$connection}.driver");
 

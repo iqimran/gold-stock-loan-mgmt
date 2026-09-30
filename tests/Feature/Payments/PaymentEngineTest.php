@@ -19,6 +19,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Laravel\Sanctum\Sanctum;
 use PHPUnit\Framework\Attributes\DataProvider;
 use RuntimeException;
@@ -53,7 +54,7 @@ class PaymentEngineTest extends TestCase
 
     private function pay(Loan $loan, string $type, string $amount, array $extra = [])
     {
-        return $this->postJson('/api/v1/payments', ['loan' => $loan->loan_no, 'type' => $type, 'amount' => $amount, 'method' => 'cash', 'payment_date' => '2026-12-15', ...$extra]);
+        return $this->postJson('/api/v1/payments', ['loan' => $loan->loan_no, 'type' => $type, 'amount' => $amount, 'method' => 'cash', 'payment_date' => '2026-12-15', 'idempotency_key' => (string) Str::uuid(), ...$extra]);
     }
 
     /**
@@ -294,7 +295,7 @@ class PaymentEngineTest extends TestCase
 
         $first = $this->pay($loan, 'interest', '200', ['idempotency_key' => 'till-7-000123'])->assertCreated()->json('data.receipt_no');
         $this->pay($loan, 'interest', '200', ['idempotency_key' => 'till-7-000123'])->assertOk()->assertJsonPath('data.receipt_no', $first);
-        $this->withHeader('Idempotency-Key', 'till-7-000123')->pay($loan, 'interest', '200')->assertOk()->assertJsonPath('data.receipt_no', $first);
+        $this->withHeader('Idempotency-Key', 'till-7-000123')->pay($loan, 'interest', '200', ['idempotency_key' => null])->assertOk()->assertJsonPath('data.receipt_no', $first);
 
         $this->assertDatabaseCount('payments', 1);
         $this->assertSame([['200.00', 'paid'], ['0.00', 'overdue'], ['0.00', 'upcoming']], $this->periods($loan)); // applied once
@@ -303,9 +304,9 @@ class PaymentEngineTest extends TestCase
     public function test_reusing_a_key_for_a_different_payment_is_a_conflict(): void
     {
         $loan = $this->loan();
-        $this->pay($loan, 'interest', '200', ['idempotency_key' => 'k-1'])->assertCreated();
+        $this->pay($loan, 'interest', '200', ['idempotency_key' => 'key-0001'])->assertCreated();
 
-        $this->pay($loan, 'interest', '250', ['idempotency_key' => 'k-1'])->assertConflict();
+        $this->pay($loan, 'interest', '250', ['idempotency_key' => 'key-0001'])->assertConflict();
         $this->assertDatabaseCount('payments', 1);
     }
 

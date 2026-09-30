@@ -33,7 +33,9 @@ return [
         'local' => [
             'driver' => 'local',
             'root' => storage_path('app/private'),
-            'serve' => true,
+            // Customer photos live here and are served only through the authorised customer image
+            // route; no signed /storage URLs (and their upload route) are exposed.
+            'serve' => false,
             'throw' => false,
         ],
 

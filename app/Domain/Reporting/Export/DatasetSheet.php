@@ -5,10 +5,14 @@ namespace App\Domain\Reporting\Export;
 use Carbon\CarbonImmutable;
 use Maatwebsite\Excel\Concerns\FromArray;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
+use Maatwebsite\Excel\Concerns\WithCustomValueBinder;
 use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithTitle;
 use Maatwebsite\Excel\Events\AfterSheet;
+use PhpOffice\PhpSpreadsheet\Cell\Cell;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
+use PhpOffice\PhpSpreadsheet\Cell\DefaultValueBinder;
 use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
 
@@ -20,7 +24,7 @@ use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
  *   data rows                               (numbers as numbers, dates as dates, typed number formats)
  *   totals rows                             (bold, the report's server totals — not recalculated)
  */
-class DatasetSheet implements FromArray, ShouldAutoSize, WithEvents, WithTitle
+class DatasetSheet extends DefaultValueBinder implements FromArray, ShouldAutoSize, WithCustomValueBinder, WithEvents, WithTitle
 {
     private int $headerRow;
 
@@ -103,6 +107,22 @@ class DatasetSheet implements FromArray, ShouldAutoSize, WithEvents, WithTitle
                 }
             },
         ];
+    }
+
+    /**
+     * Every text value is stored as literal text, never interpreted: a customer name, reference or note
+     * such as "=HYPERLINK(…)" or "+cmd…" must not become a formula when the workbook is opened (CSV/Excel
+     * formula injection). Numbers and dates are passed as PHP numbers by cell() and stay numeric.
+     */
+    public function bindValue(Cell $cell, mixed $value): bool
+    {
+        if (is_string($value)) {
+            $cell->setValueExplicit($value, DataType::TYPE_STRING);
+
+            return true;
+        }
+
+        return parent::bindValue($cell, $value);
     }
 
     /**

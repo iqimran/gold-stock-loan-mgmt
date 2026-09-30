@@ -256,9 +256,9 @@ class LoanSettingsTest extends TestCase
 
         $loan = $this->activeLoan('2026-10-01');
         Carbon::setTestNow('2026-11-05 10:00:00');
-        $this->actingAs($admin)->postJson('/api/v1/payments', ['loan' => $loan->loan_no, 'type' => 'interest', 'amount' => '100', 'method' => 'card', 'payment_date' => '2026-11-05', 'idempotency_key' => 'k1'])
+        $this->actingAs($admin)->postJson('/api/v1/payments', ['loan' => $loan->loan_no, 'type' => 'interest', 'amount' => '100', 'method' => 'card', 'payment_date' => '2026-11-05', 'idempotency_key' => 'settings-key-1'])
             ->assertJsonValidationErrors('method');
-        $this->actingAs($admin)->postJson('/api/v1/payments', ['loan' => $loan->loan_no, 'type' => 'interest', 'amount' => '100', 'method' => 'bkash', 'payment_date' => '2026-11-05', 'idempotency_key' => 'k2'])
+        $this->actingAs($admin)->postJson('/api/v1/payments', ['loan' => $loan->loan_no, 'type' => 'interest', 'amount' => '100', 'method' => 'bkash', 'payment_date' => '2026-11-05', 'idempotency_key' => 'settings-key-2'])
             ->assertCreated();
 
         $this->actingAs($admin)->get("/loans/{$draft->loan_no}")

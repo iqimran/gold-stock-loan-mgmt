@@ -14,7 +14,7 @@ use Illuminate\Validation\Rule;
 /**
  * Validates a payment submission. Only what the cashier enters is accepted (loan, amount, type, method,
  * date, reference); balances and the allocation are always computed by App\Domain\Payment\PaymentService.
- * An optional idempotency key (field or Idempotency-Key header) makes retries safe.
+ * A required idempotency key (field or Idempotency-Key header), scoped to the user, makes retries safe.
  */
 class PaymentRequest extends FormRequest
 {
@@ -45,7 +45,10 @@ class PaymentRequest extends FormRequest
             'payment_date' => ['required', 'date_format:Y-m-d', 'before_or_equal:today'],
             'reference' => ['nullable', 'string', 'max:100'],
             'notes' => ['nullable', 'string', 'max:2000'],
-            'idempotency_key' => ['nullable', 'string', 'max:100'],
+            // Required: every submission carries a client-generated key (the form makes one per payment;
+            // API clients send the field or an Idempotency-Key header), so a retried or double-submitted
+            // request can never post the same payment twice.
+            'idempotency_key' => ['required', 'string', 'min:8', 'max:100'],
         ];
     }
 

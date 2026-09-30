@@ -58,6 +58,7 @@ class AuditLogResource extends JsonResource
             // A deleted role: the name is kept in the entry itself.
             $this->auditable_type === Role::class => ['type' => 'Role', 'reference' => $this->old_values['name'] ?? null, 'url' => null],
             str_starts_with($this->event, 'settings.') => ['type' => 'Settings', 'reference' => null, 'url' => null],
+            $this->event === 'export.downloaded' => ['type' => 'Export', 'reference' => $this->new_values['export'] ?? null, 'url' => null],
             default => null,
         };
     }

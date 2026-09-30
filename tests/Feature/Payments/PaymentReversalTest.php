@@ -20,6 +20,7 @@ use App\Support\Money;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Laravel\Sanctum\Sanctum;
 use RuntimeException;
 use Tests\TestCase;
@@ -55,7 +56,7 @@ class PaymentReversalTest extends TestCase
 
     private function pay(Loan $loan, string $type, string $amount, string $date = '2026-12-15'): string
     {
-        return $this->postJson('/api/v1/payments', ['loan' => $loan->loan_no, 'type' => $type, 'amount' => $amount, 'method' => 'cash', 'payment_date' => $date])
+        return $this->postJson('/api/v1/payments', ['loan' => $loan->loan_no, 'type' => $type, 'amount' => $amount, 'method' => 'cash', 'payment_date' => $date, 'idempotency_key' => (string) Str::uuid()])
             ->assertCreated()
             ->json('data.receipt_no');
     }

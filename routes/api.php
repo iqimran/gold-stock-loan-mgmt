@@ -21,17 +21,17 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         ->middleware('throttle:6,1')
         ->name('auth.token.store');
 
-    Route::middleware(['auth:sanctum', 'active'])->group(function () {
+    Route::middleware(['auth:sanctum', 'active', 'throttle:api'])->group(function () {
         Route::delete('auth/token', [TokenController::class, 'destroy'])->name('auth.token.destroy');
         Route::get('user', CurrentUserController::class)->name('user');
         Route::get('users', [UserController::class, 'index'])->name('users.index');
         Route::get('audit-logs', [AuditLogController::class, 'index'])->name('audit-logs.index');
 
         // PDF/Excel exports (same controller as the web routes). Before the {model} routes.
-        Route::get('reports/{report}/export', [ExportController::class, 'report'])->name('reports.export');
-        Route::get('loans/export', [ExportController::class, 'loans'])->name('loans.export');
-        Route::get('payments/export', [ExportController::class, 'payments'])->name('payments.export');
-        Route::get('customers/export', [ExportController::class, 'customers'])->name('customers.export');
+        Route::get('reports/{report}/export', [ExportController::class, 'report'])->middleware('throttle:exports')->name('reports.export');
+        Route::get('loans/export', [ExportController::class, 'loans'])->middleware('throttle:exports')->name('loans.export');
+        Route::get('payments/export', [ExportController::class, 'payments'])->middleware('throttle:exports')->name('payments.export');
+        Route::get('customers/export', [ExportController::class, 'customers'])->middleware('throttle:exports')->name('customers.export');
 
         // Customers (docs/04-api.md). DELETE archives; customers are never hard-deleted.
         Route::apiResource('customers', CustomerController::class);
@@ -41,9 +41,9 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
 
         // Loans (docs/04-api.md). No DELETE: loans are cancelled or closed, never deleted.
         Route::apiResource('loans', LoanController::class)->except('destroy');
-        Route::post('loans/{loan}/activate', [LoanController::class, 'activate'])->name('loans.activate');
-        Route::post('loans/{loan}/close', [LoanController::class, 'close'])->name('loans.close');
-        Route::post('loans/{loan}/cancel', [LoanController::class, 'cancel'])->name('loans.cancel');
+        Route::post('loans/{loan}/activate', [LoanController::class, 'activate'])->middleware('throttle:financial')->name('loans.activate');
+        Route::post('loans/{loan}/close', [LoanController::class, 'close'])->middleware('throttle:financial')->name('loans.close');
+        Route::post('loans/{loan}/cancel', [LoanController::class, 'cancel'])->middleware('throttle:financial')->name('loans.cancel');
 
         // Collateral (docs/04-api.md). No DELETE: items are released, never deleted.
         Route::get('loans/{loan}/collateral', [CollateralController::class, 'forLoan'])->name('loans.collateral.index');
@@ -51,13 +51,13 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         Route::get('collateral', [CollateralController::class, 'index'])->name('collateral.index');
         Route::get('collateral/{collateralItem}', [CollateralController::class, 'show'])->name('collateral.show');
         Route::match(['put', 'patch'], 'collateral/{collateralItem}', [CollateralController::class, 'update'])->name('collateral.update');
-        Route::post('collateral/{collateralItem}/release', [CollateralController::class, 'release'])->name('collateral.release');
+        Route::post('collateral/{collateralItem}/release', [CollateralController::class, 'release'])->middleware('throttle:financial')->name('collateral.release');
 
         // Payments (docs/04-api.md). No update/delete: a posted payment is only ever reversed.
         Route::get('payments', [PaymentController::class, 'index'])->name('payments.index');
-        Route::post('payments', [PaymentController::class, 'store'])->name('payments.store');
+        Route::post('payments', [PaymentController::class, 'store'])->middleware('throttle:financial')->name('payments.store');
         Route::get('payments/{payment}', [PaymentController::class, 'show'])->name('payments.show');
-        Route::post('payments/{payment}/reverse', [PaymentController::class, 'reverse'])->name('payments.reverse');
+        Route::post('payments/{payment}/reverse', [PaymentController::class, 'reverse'])->middleware('throttle:financial')->name('payments.reverse');
         Route::get('loans/{loan}/payments', [PaymentController::class, 'forLoan'])->name('loans.payments');
         Route::get('customers/{customer}/payments', [PaymentController::class, 'forCustomer'])->name('customers.payments');
 

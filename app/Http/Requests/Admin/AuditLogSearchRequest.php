@@ -14,7 +14,7 @@ use Illuminate\Validation\Rule;
  */
 class AuditLogSearchRequest extends FormRequest
 {
-    public const AREAS = ['loan', 'payment', 'collateral', 'customer', 'settings', 'user', 'role', 'auth'];
+    public const AREAS = ['loan', 'payment', 'collateral', 'customer', 'settings', 'user', 'role', 'auth', 'export'];
 
     public function authorize(): bool
     {
