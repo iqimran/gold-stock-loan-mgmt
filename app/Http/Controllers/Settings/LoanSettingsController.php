@@ -11,6 +11,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\LoanSettingsRequest;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -24,7 +25,8 @@ class LoanSettingsController extends Controller
         Gate::authorize(Permission::SettingsManage->value);
 
         return Inertia::render('settings/loans', [
-            'settings' => $settings->all(),
+            'settings' => array_diff_key($settings->all(), ['shop.logo_path' => true]),
+            'logoUrl' => $settings->branding()['logo_url'],
             'effects' => LoanSettings::EFFECTS,
             'options' => [
                 'interest_base' => LoanSettings::INTEREST_BASES,
@@ -37,7 +39,29 @@ class LoanSettingsController extends Controller
 
     public function update(LoanSettingsRequest $request, LoanSettings $settings): RedirectResponse
     {
-        $settings->update($request->settings());
+        $values = $request->settings();
+        $previousLogo = $settings->logoPath();
+
+        if ($request->hasFile('logo')) {
+            $values['shop.logo_path'] = $settings->storeLogo($request->file('logo'));
+        } elseif ($request->boolean('remove_logo')) {
+            $values['shop.logo_path'] = null;
+        }
+
+        try {
+            $settings->update($values);
+        } catch (\Throwable $e) {
+            if (isset($values['shop.logo_path']) && $values['shop.logo_path'] !== $previousLogo) {
+                Storage::disk(LoanSettings::LOGO_DISK)->delete($values['shop.logo_path']);
+            }
+
+            throw $e;
+        }
+
+        // The replaced / removed logo file goes only once the new setting is saved.
+        if ($previousLogo !== null && array_key_exists('shop.logo_path', $values) && $values['shop.logo_path'] !== $previousLogo) {
+            Storage::disk(LoanSettings::LOGO_DISK)->delete($previousLogo);
+        }
 
         return to_route('settings.loans.edit')->with('success', 'Loan settings saved.');
     }

@@ -38,6 +38,9 @@ class LoanSettingsRequest extends FormRequest
             'shop.address' => ['nullable', 'string', 'max:255'],
             'shop.phone' => ['nullable', 'string', 'max:40'],
             'shop.receipt_footer' => ['nullable', 'string', 'max:255'],
+            // Raster only: an SVG could carry script, and the logo is served publicly (sign-in page).
+            'logo' => ['nullable', 'file', 'mimes:png,jpg,jpeg,webp', 'mimetypes:image/png,image/jpeg,image/webp', 'max:1024', 'dimensions:min_width=32,min_height=32,max_width=2000,max_height=2000'],
+            'remove_logo' => ['sometimes', 'boolean'],
 
             'currency.code' => ['required', 'string', 'regex:/^[A-Z]{3}$/'],
             'currency.symbol' => ['required', 'string', 'max:5'],
@@ -82,6 +85,10 @@ class LoanSettingsRequest extends FormRequest
             'lists.collateral_types.*.regex' => 'Use lowercase letters, digits and underscores (e.g. necklace).',
             'lists.*.*.distinct' => 'Each value may appear only once.',
             'lists.karat_options.*.lte' => 'A karat option cannot exceed the maximum karat.',
+            'logo.mimes' => 'The logo must be a PNG, JPG or WebP image.',
+            'logo.mimetypes' => 'The logo must be a PNG, JPG or WebP image.',
+            'logo.max' => 'The logo may not be larger than 1 MB.',
+            'logo.dimensions' => 'The logo must be between 32×32 and 2000×2000 pixels.',
         ];
     }
 
@@ -111,7 +118,9 @@ class LoanSettingsRequest extends FormRequest
     {
         $validated = $this->validated();
 
+        // The logo is a file, handled by the controller (upload / remove / keep).
         return collect(array_keys(app(LoanSettings::class)->defaults()))
+            ->reject(fn (string $key) => $key === 'shop.logo_path')
             ->mapWithKeys(function (string $key) use ($validated) {
                 $value = data_get($validated, $key);
 

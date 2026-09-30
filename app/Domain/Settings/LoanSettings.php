@@ -9,9 +9,11 @@ use App\Enums\InterestDueTiming;
 use App\Enums\YearlyRateConversion;
 use App\Models\Setting;
 use Carbon\CarbonInterface;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 /**
  * The module's settings (docs/01 "Settings"), stored in the key/value `settings` table as in the
@@ -35,11 +37,15 @@ class LoanSettings
 {
     private const CACHE_KEY = 'settings.loans';
 
+    public const LOGO_DISK = 'local';
+
+    public const LOGO_DIRECTORY = 'branding';
+
     /** Interest bases offered in Settings: reducing balance only (business rule: principal payments reduce the interest base). */
     public const INTEREST_BASES = [InterestBase::Outstanding->value];
 
     public const EFFECTS = [
-        'shop' => 'Printed on receipts and exports from now on, including reprints of old receipts.',
+        'shop' => 'The application name and logo (sidebar, sign-in page, browser tab) and receipts / exports from now on, including reprints of old receipts.',
         'currency' => 'Display only (screens, receipts, exports). Amounts are never converted.',
         'interest' => 'New loans only: each loan keeps the method in force when it was created. Existing loans and generated interest periods never change.',
         'defaults' => 'Prefill of the New loan form only.',
@@ -100,6 +106,37 @@ class LoanSettings
             'phone' => $all['shop.phone'],
             'receipt_footer' => $all['shop.receipt_footer'],
         ];
+    }
+
+    /**
+     * The shop's branding for every screen, including the public sign-in page.
+     *
+     * @return array{name: string, logo_url: ?string}
+     */
+    public function branding(): array
+    {
+        $path = $this->all()['shop.logo_path'];
+
+        return [
+            'name' => $this->shop()['name'],
+            // Versioned by file name, so a new logo is never served from a stale cache.
+            'logo_url' => $path ? route('branding.logo', ['v' => substr(md5($path), 0, 8)]) : null,
+        ];
+    }
+
+    /** Storage path of the uploaded logo (private disk), if any. */
+    public function logoPath(): ?string
+    {
+        return $this->all()['shop.logo_path'];
+    }
+
+    /**
+     * Stores an uploaded logo (already validated: raster image) under a random name; the caller saves the
+     * returned path as `shop.logo_path` through update(), so the change is audited.
+     */
+    public function storeLogo(UploadedFile $file): string
+    {
+        return $file->storeAs(self::LOGO_DIRECTORY, 'logo-'.Str::random(16).'.'.$file->extension(), self::LOGO_DISK);
     }
 
     /**
@@ -205,6 +242,7 @@ class LoanSettings
             'shop.address' => config('shop.address'),
             'shop.phone' => config('shop.phone'),
             'shop.receipt_footer' => config('shop.receipt_footer'),
+            'shop.logo_path' => null,
             'currency.code' => config('loans.currency.code'),
             'currency.symbol' => config('loans.currency.symbol'),
             'interest.base' => config('loans.interest.base'),

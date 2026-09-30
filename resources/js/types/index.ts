@@ -34,8 +34,14 @@ export interface Currency {
     symbol: string;
 }
 
+export interface Branding {
+    name: string;
+    logo_url: string | null;
+}
+
 export interface SharedData {
     name: string;
+    branding: Branding;
     currency: Currency;
     auth: Auth;
     flash: FlashMessages;

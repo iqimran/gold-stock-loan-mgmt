@@ -21,7 +21,9 @@ use App\Models\Loan;
 use App\Models\Setting;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
@@ -290,5 +292,71 @@ class LoanSettingsTest extends TestCase
 
         $this->actingAs($admin)->get('/loans/create')
             ->assertInertia(fn (Assert $page) => $page->where('defaults', ['interest_rate' => '3.25', 'interest_rate_type' => 'yearly']));
+    }
+
+    // ── branding: shop name and logo ────────────────────────────────────────────────────────
+
+    public function test_the_shop_name_brands_every_screen_including_the_sign_in_page(): void
+    {
+        $this->save(['shop' => ['name' => 'Rupali Jewellers']])->assertSessionHasNoErrors();
+        auth()->logout();
+
+        $this->get('/login')
+            ->assertOk()
+            ->assertSee('<title inertia>Rupali Jewellers</title>', false)
+            ->assertInertia(fn (Assert $page) => $page->where('name', 'Rupali Jewellers')->where('branding', ['name' => 'Rupali Jewellers', 'logo_url' => null]));
+
+        $this->actingAs($this->admin())->get('/dashboard')->assertInertia(fn (Assert $page) => $page->where('branding.name', 'Rupali Jewellers'));
+    }
+
+    public function test_a_logo_can_be_uploaded_replaced_and_removed(): void
+    {
+        Storage::fake(LoanSettings::LOGO_DISK);
+        $admin = $this->admin();
+
+        $this->actingAs($admin)->post('/settings/loans', [...$this->payload(), '_method' => 'put', 'logo' => UploadedFile::fake()->image('logo.png', 200, 80)])
+            ->assertSessionHasNoErrors();
+        $first = $this->settings()->logoPath();
+        $this->assertStringStartsWith('branding/logo-', $first);
+        Storage::disk(LoanSettings::LOGO_DISK)->assertExists($first);
+        $logoUrl = $this->settings()->branding()['logo_url'];
+        $this->assertStringContainsString('/branding/logo?v=', $logoUrl);
+
+        // Shown to guests (sign-in page) and served publicly, safely.
+        auth()->logout();
+        $this->get('/login')->assertInertia(fn (Assert $page) => $page->where('branding.logo_url', $logoUrl))->assertSee('<link rel="icon"', false);
+        $this->get('/branding/logo')->assertOk()->assertHeader('X-Content-Type-Options', 'nosniff')->assertHeader('Content-Type', 'image/png');
+
+        // Saving other settings keeps the logo.
+        $this->actingAs($admin)->put('/settings/loans', $this->payload(['collection' => ['grace_days' => 2]]))->assertSessionHasNoErrors();
+        $this->assertSame($first, $this->settings()->logoPath());
+
+        // Replacing deletes the old file; the change is audited.
+        $this->actingAs($admin)->post('/settings/loans', [...$this->payload(), '_method' => 'put', 'logo' => UploadedFile::fake()->image('new.webp', 100, 100)]);
+        $second = $this->settings()->logoPath();
+        $this->assertNotSame($first, $second);
+        Storage::disk(LoanSettings::LOGO_DISK)->assertMissing($first);
+        $audit = AuditLog::query()->where('event', 'settings.loans_updated')->latest('id')->first();
+        $this->assertSame($first, $audit->old_values['shop.logo_path']);
+        $this->assertSame($second, $audit->new_values['shop.logo_path']);
+
+        // Removing goes back to the built-in icon.
+        $this->actingAs($admin)->put('/settings/loans', [...$this->payload(), 'remove_logo' => true])->assertSessionHasNoErrors();
+        $this->assertNull($this->settings()->logoPath());
+        Storage::disk(LoanSettings::LOGO_DISK)->assertMissing($second);
+        $this->get('/branding/logo')->assertNotFound();
+    }
+
+    public function test_only_small_raster_images_are_accepted_as_a_logo(): void
+    {
+        Storage::fake(LoanSettings::LOGO_DISK);
+        $svg = UploadedFile::fake()->createWithContent('logo.svg', '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>');
+
+        foreach ([$svg, UploadedFile::fake()->create('logo.pdf', 10, 'application/pdf'), UploadedFile::fake()->image('tiny.png', 10, 10), UploadedFile::fake()->image('big.jpg', 500, 500)->size(2048)] as $file) {
+            $this->actingAs($this->admin())->post('/settings/loans', [...$this->payload(), '_method' => 'put', 'logo' => $file])->assertSessionHasErrors('logo');
+        }
+
+        $this->assertNull($this->settings()->logoPath());
+        $this->assertSame([], Storage::disk(LoanSettings::LOGO_DISK)->allFiles());
     }
 }

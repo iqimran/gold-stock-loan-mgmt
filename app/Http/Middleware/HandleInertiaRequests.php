@@ -40,7 +40,9 @@ class HandleInertiaRequests extends Middleware
 
         return [
             ...parent::share($request),
-            'name' => config('app.name'),
+            // The shop's name and logo (Settings) brand every screen, including the sign-in page.
+            'name' => fn () => app(LoanSettings::class)->shop()['name'],
+            'branding' => fn () => app(LoanSettings::class)->branding(),
             // Display only (Settings); amounts are never converted.
             'currency' => fn () => app(LoanSettings::class)->currency(),
             'auth' => [

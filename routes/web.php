@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\AuditLogController;
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\BrandingLogoController;
 use App\Http\Controllers\Customers\CustomerController;
 use App\Http\Controllers\Customers\CustomerImageController;
 use App\Http\Controllers\DashboardController;
@@ -13,6 +14,9 @@ use App\Http\Controllers\Payments\PaymentController;
 use Illuminate\Support\Facades\Route;
 
 Route::redirect('/', '/dashboard')->name('home');
+
+// Shop logo: public (shown on the sign-in page).
+Route::get('branding/logo', BrandingLogoController::class)->name('branding.logo');
 
 Route::middleware(['auth'])->group(function () {
     // Every signed-in user; each block is permission-aware (DashboardController).

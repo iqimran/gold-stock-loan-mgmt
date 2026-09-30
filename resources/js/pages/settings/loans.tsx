@@ -8,8 +8,8 @@ import SettingsLayout from '@/layouts/settings/layout';
 import { type BreadcrumbItem } from '@/types';
 import { Transition } from '@headlessui/react';
 import { Head, useForm } from '@inertiajs/react';
-import { Info, LoaderCircle } from 'lucide-react';
-import { FormEventHandler, type ReactNode } from 'react';
+import { ImageIcon, Info, LoaderCircle } from 'lucide-react';
+import { FormEventHandler, type ReactNode, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Loan settings', href: '/settings/loans' }];
 
@@ -37,6 +37,8 @@ const LIST_KEYS = ['lists.payment_methods', 'lists.collateral_types', 'lists.kar
 
 interface LoanSettingsProps {
     settings: SettingsValues;
+    /** Current shop logo, if one was uploaded. */
+    logoUrl: string | null;
     effects: Record<Section, string>;
     options: { interest_base: string[]; interest_due: string[]; yearly_conversion: string[]; rate_types: string[] };
 }
@@ -70,13 +72,25 @@ function toPayload(values: FormValues): Record<string, Record<string, unknown>> 
  * Settings → Loan settings. The server validates and stores every value (and audits the change);
  * each section states what a change affects, so historical figures are never silently changed.
  */
-export default function LoanSettings({ settings, effects, options }: LoanSettingsProps) {
-    const { data, setData, put, processing, errors, transform, recentlySuccessful } = useForm<FormValues>(toForm(settings));
+export default function LoanSettings({ settings, logoUrl, effects, options }: LoanSettingsProps) {
+    const { data, setData, post, processing, errors, transform, recentlySuccessful } = useForm<FormValues>(toForm(settings));
+    const [logo, setLogo] = useState<File | null>(null);
+    const [removeLogo, setRemoveLogo] = useState(false);
+    const [logoInput, setLogoInput] = useState(0); // remounts the file input to clear it
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
-        transform((values) => toPayload(values));
-        put(route('settings.loans.update'), { preserveScroll: true });
+        // Sent as multipart when a logo is attached (method spoofed to PUT).
+        transform((values) => ({ ...toPayload(values), _method: 'put', ...(logo ? { logo } : {}), remove_logo: removeLogo ? 1 : 0 }));
+        post(route('settings.loans.update'), {
+            preserveScroll: true,
+            forceFormData: logo !== null,
+            onSuccess: () => {
+                setLogo(null);
+                setRemoveLogo(false);
+                setLogoInput((n) => n + 1);
+            },
+        });
     };
 
     const allErrors = errors as Record<string, string>;
@@ -133,7 +147,43 @@ export default function LoanSettings({ settings, effects, options }: LoanSetting
                             'shop',
                             'Shop & receipt',
                             <>
-                                {text('shop.name', 'Shop name')}
+                                {text('shop.name', 'Shop name (application name)')}
+                                <div className="grid gap-2">
+                                    <Label htmlFor="logo">Logo</Label>
+                                    <div className="flex items-center gap-4">
+                                        <div className="bg-muted flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-md border">
+                                            {logo ? (
+                                                <img src={URL.createObjectURL(logo)} alt="New logo" className="size-full object-contain" />
+                                            ) : logoUrl && !removeLogo ? (
+                                                <img src={logoUrl} alt="Current logo" className="size-full object-contain" />
+                                            ) : (
+                                                <ImageIcon className="text-muted-foreground size-6" aria-hidden />
+                                            )}
+                                        </div>
+                                        <div className="grid gap-2">
+                                            <Input
+                                                key={logoInput}
+                                                id="logo"
+                                                type="file"
+                                                accept="image/png,image/jpeg,image/webp"
+                                                onChange={(e) => {
+                                                    setLogo(e.target.files?.[0] ?? null);
+                                                    setRemoveLogo(false);
+                                                }}
+                                            />
+                                            {logoUrl && !logo && (
+                                                <label className="flex items-center gap-2 text-sm">
+                                                    <input type="checkbox" checked={removeLogo} onChange={(e) => setRemoveLogo(e.target.checked)} />
+                                                    Remove the logo (use the built-in icon)
+                                                </label>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <p className="text-muted-foreground text-xs">
+                                        PNG, JPG or WebP, up to 1 MB. Shown in the sidebar, on the sign-in page and as the browser icon.
+                                    </p>
+                                    <InputError message={errorFor('logo')} />
+                                </div>
                                 {text('shop.address', 'Address')}
                                 {text('shop.phone', 'Phone')}
                                 {text('shop.receipt_footer', 'Receipt footer')}
